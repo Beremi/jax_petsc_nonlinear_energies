@@ -261,6 +261,28 @@
       "local_filename": "blauth2023cashocsv2.pdf",
       "notes": ""
     },
+    "sysala2025advancedcontinuation": {
+      "canonical_source_label": "DOI landing page",
+      "canonical_source_url": "https://doi.org/10.1016/j.compstruc.2025.107842",
+      "doi": "10.1016/j.compstruc.2025.107842",
+      "fulltext_label": "ASEP postprint PDF",
+      "fulltext_url": "https://asep.lib.cas.cz/arl-cav/cs/contapp/?send=1&op=contapp&repo=crepo1&key=49263244102",
+      "isbns": [],
+      "local_filename": "sysala2025advancedcontinuation.pdf",
+      "notes": "Supplemental uncited validation-planning literature entry.",
+      "supplemental": true
+    },
+    "sysala2025convexoptimization": {
+      "canonical_source_label": "DOI landing page",
+      "canonical_source_url": "https://doi.org/10.1137/25M1723177",
+      "doi": "10.1137/25M1723177",
+      "fulltext_label": "arXiv PDF",
+      "fulltext_url": "https://arxiv.org/pdf/2312.12170.pdf",
+      "isbns": [],
+      "local_filename": "sysala2025convexoptimization.pdf",
+      "notes": "Supplemental uncited validation-planning literature entry.",
+      "supplemental": true
+    },
     "bode2025autopdex": {
       "canonical_source_label": "JOSS article",
       "canonical_source_url": "https://joss.theoj.org/papers/10.21105/joss.07300",

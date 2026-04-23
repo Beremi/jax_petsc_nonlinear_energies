@@ -89,6 +89,282 @@ The goal of the next revision should be to make that claim precise, well-support
    Output: one figure or table plus a short explanatory paragraph.
    Files: `paper/sections/benchmarks.tex`, `paper/sections/results.tex`, `paper/sections/discussion.tex`
 
+### 2.3A Full Validation Plan For The Plasticity3D Surrogate
+
+Objective:
+validate the current Plasticity3D scalar surrogate in the strongest publishable way without overstating what is already proven. The target is now a three-part ladder:
+
+1. `Layer 1A Exact source-faithfulness`:
+   show that the maintained `JAX + PETSc` implementation reproduces the same-case source-style Plasticity3D workflow under matched conditions.
+2. `Layer 1B Published source-family triangulation`:
+   connect the maintained implementation to the published 3D slope-stability source family, including the recent `CAS 2025` paper and the related MATLAB/PETSc `COMSOL`-backed benchmark lineage.
+3. `Layer 2 Incremental-reference validation`:
+   show that the surrogate remains scientifically credible when compared against a standard rate-independent incremental Mohr-Coulomb elastoplastic reference with history updates.
+
+Defaults for this validation package:
+
+- anchor benchmark: `Plasticity3D`
+- ambition level: `full strongest`
+- canonical validation case: coarse glued-bottom `P2(L1)` on the imported heterogeneous 3D slope
+- common cross-layer reporting schedule:
+  `lambda = 1.0, 1.2, 1.4, 1.5, 1.55, 1.6`
+- authoritative `Layer 1A` direct-branch schedule from the already completed Octave/JAX comparison:
+  `[1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6]`
+
+Why this is required:
+the current repository benchmark is an endpoint scalar surrogate, not a path-consistent incremental elastoplastic history solve. That is already stated honestly in the paper, but reviewer-facing rigor requires a separate validation layer before the manuscript can make broader constitutive claims. The relevant literature also supports this split:
+
+- non-associated slope plasticity can be numerically difficult in strength-reduction analysis, and Davis-style modifications are used precisely to stabilize and interpret the problem
+- standard incremental elastoplastic validation is tied to the constitutive integration algorithm and its tangent, not only to endpoint energy agreement
+- recent constitutive-software papers expect explicit numerical verification, not only visual similarity
+- the new `CAS 2025` and `SIOPT 2025` papers strengthen the source-lineage and optimization-family grounding, but they do not erase the difference between source-faithfulness and true incremental constitutive validation
+
+Step 1: lock the exact validation contract before running anything.
+
+Use the same geometry, raw materials, glued-bottom boundary rule, gravity direction, and Davis-B reduction across all validation layers. Do not allow silent changes in stopping rules, boundary handling, or reduction formulas between comparisons. The validation package should explicitly write these inputs into one small run manifest so that every comparison row can be audited later.
+
+Step 2: formalize `Layer 1A` as a near-complete source-faithfulness package instead of treating it as missing work.
+
+The repository already has same-case source-comparison evidence and it should be elevated rather than rebuilt:
+
+- docs evidence:
+  `docs/problems/Plasticity3D.md`
+- runner scaffold:
+  `experiments/runners/run_plasticity3d_p4_l1_lambda1p5_source_compare.py`
+- test scaffold:
+  `tests/test_plasticity3d_source_compare_runner.py`
+
+Lock the default `Layer 1A` evidence package to the existing Octave/JAX direct-branch comparison:
+
+- case: glued-bottom `P2(L1)`
+- same imported mesh
+- same material map
+- same gravity axis
+- same Davis-B reduction
+- same stop policy
+- accepted direct-branch schedule:
+  `[1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6]`
+
+Treat these existing final differences as the baseline source-faithfulness evidence that already exists and must be packaged cleanly into the paper:
+
+- work relative difference:
+  `3.877021e-05`
+- displacement-field relative `L2` difference:
+  `3.517247e-03`
+- deviatoric-strain relative `L2` difference:
+  `8.857115e-03`
+
+The remaining tasks for `Layer 1A` are packaging, stabilization, and manuscript insertion, not proving fidelity from scratch. The paper-grade artifact set should include:
+
+- final `energy / work` values
+- `omega`
+- `u_max`
+- nonlinear history
+- final displacement-field relative `L2`
+- final deviatoric-strain-slice relative `L2`
+- one visual overlay of the deformed boundary
+- three visual overlays for the `x / y / z` strain slices
+
+Completion rule for `Layer 1A`:
+this layer is not finished until the already existing comparison is promoted from docs annex status into a paper-usable artifact set:
+
+- one stored JSON summary
+- one stable runner
+- one stable asset generator
+- one table or figure that can be referenced from the paper
+
+Step 3: add `Layer 1B` as published source-family triangulation, clearly labeled as context rather than exact case equivalence.
+
+Use the following published-source bridge:
+
+- paper:
+  `Sysala et al. 2025, Computers & Structures`
+- repository context:
+  `tmp/source_compare/slope_stability_octave_ref`
+- maintained source-family benchmark:
+  `tmp/source_compare/slope_stability_petsc4py/benchmarks/run_3D_hetero_seepage_SSR_comsol_capture/archive/report.md`
+
+This layer is valuable because it ties the maintained repository to a recent published 3D slope-stability line that:
+
+- uses Davis-based `SSR` continuation on Mohr-Coulomb plasticity
+- studies advanced nonlinear / Krylov solver behavior in 3D
+- includes mesh-adapted 3D slope workflows
+- explicitly states that numerical results are validated against literature or `COMSOL Multiphysics`
+
+Use the maintained PETSc/MATLAB `COMSOL`-backed report as related-case quantitative context. The current stored comparison already reports:
+
+- relative `lambda` history error:
+  `2.144e-05`
+- relative `omega` history error:
+  `2.887e-04`
+- relative `Umax` history error:
+  `3.190e-03`
+
+However, this layer must be labeled carefully:
+
+- classify it as `Context / published source-family evidence`
+- do not present it as the same thing as the glued-bottom imported `Plasticity3D` benchmark
+- do not treat seepage+`COMSOL` agreement as a substitute for same-case constitutive validation
+
+The manuscript value of `Layer 1B` is to show that the maintained code is not isolated: it already sits on top of a published, validated, open-source source family with both literature-backed and `COMSOL`-backed 3D evidence.
+
+Step 4: keep `Layer 2` as the true incremental-reference comparison.
+
+This is the scientifically important new work. Add one new small reference problem that uses a standard rate-independent incremental Mohr-Coulomb formulation with:
+
+- internal variables
+- an implicit constitutive update
+- a constitutive algorithm / tangent appropriate for incremental elastoplasticity
+
+This reference must not reuse the repository's zero-history placeholder logic. It must be an incremental history solve, not another endpoint scalar surrogate.
+
+Keep this layer bounded:
+
+- use the same canonical coarse `P2(L1)` case
+- keep it local and small
+- do not try to scale it to the full flagship `P4(L1_2)` campaign
+
+To keep the constitutive comparison apples-to-apples, the reference problem must use:
+
+- the same raw material parameters
+- the same geometry
+- the same glued-bottom rule
+- the same gravity direction
+- the same Davis-B reduced parameters at each `lambda`
+
+The reference may use its own algorithmic tangent or return-mapping machinery, but it must remain within the same Mohr-Coulomb strength-reduction family. A good target is an implicit return-mapping / semismooth-Newton style reference, because that aligns with the standard incremental viewpoint described by Simo-Taylor and by the Mohr-Coulomb return-mapping literature.
+
+The key reviewer-facing rule remains:
+
+- `CAS 2025` plus the source-family `COMSOL` benchmark materially strengthen the validation story
+- they do **not** justify dropping `Layer 2` while the paper still wants strong constitutive claims
+- only if the manuscript claim is intentionally narrowed to source-faithfulness plus optimization-family relevance could `Layer 2` be deferred
+
+Step 5: define one shared observable set and refuse to compare implementation-specific internals.
+
+For Layer 2, compare only observables that both formulations can provide cleanly:
+
+- critical `lambda` or `FoS`
+- `u_max(lambda)`
+- one boundary-displacement profile
+- final displacement field on common sample points
+- final deviatoric-strain slices on common `x / y / z` planes
+
+Do not require equality of:
+
+- plastic multipliers
+- branch labels
+- internal implementation diagnostics
+
+Those are implementation-specific and would create false negatives.
+
+Before computing field differences, resample both outputs to the same comparison set:
+
+- one common boundary sample path for displacement
+- one common interior sample grid for displacement-field norms
+- one common sampling rule for the `x / y / z` deviatoric-strain slices
+
+Step 6: lock quantitative acceptance criteria before any manuscript wording is updated.
+
+Hard acceptance targets:
+
+- `FoS` or critical `lambda` relative difference at most `3%`
+- `u_max(lambda)` curve relative `L2` error at most `5%`
+- endpoint displacement-field relative `L2` error at most `10%` on the common sample grid
+
+Visual corroboration rule:
+the dominant high-strain localization region must appear in the same physical part of the slope on the `x / y / z` comparison slices.
+
+Manuscript rule:
+if Layer 2 disagrees materially with the surrogate, the paper must explicitly present the surrogate as a repository-specific approximation rather than as a constitutively equivalent replacement.
+
+Step 7: implement the minimum support tooling needed for the validation package.
+
+Add:
+
+- one new runner for the coarse incremental-reference campaign
+- one comparison script that ingests maintained-surrogate output and incremental-reference output
+- common-grid or common-slice resampling inside that script
+- one JSON summary writer for shared metrics
+- one paper-ready figure generator or short appendix-table generator entry
+
+The comparison script should write:
+
+- the run manifest
+- the shared metrics
+- the field-difference metrics
+- paths to the generated overlays and slice comparisons
+
+Step 8: add tests so the validation package is stable enough for paper use.
+
+Minimum tests:
+
+- one smoke test for the new comparison-summary schema
+- one smoke test for the asset generator on synthetic or tiny prepared data
+- one regression-style check that shared-sampling logic produces the expected output shapes
+
+If the incremental reference relies on external or legacy code, test the normalization and comparison layer even if the full reference run is too expensive for CI.
+
+Step 9: integrate the validation result into the manuscript only after all required layers exist.
+
+Paper integration tasks:
+
+- add one benchmark paragraph in `benchmarks.tex` explaining that the Plasticity3D surrogate is validated through exact source-faithfulness, published source-family triangulation, and a separate incremental-reference check
+- add one short validation paragraph plus one figure or table in `results.tex`
+- add one limitations sentence in `discussion.tex` explaining that source-faithfulness, source-family triangulation, and incremental-reference agreement are distinct claims
+- add the supporting sources and exact claim locators to `paper/literature/claim_audit.md`
+
+Step 10: define `2.3` as incomplete until the full package exists.
+
+`2.3` is done only when:
+
+- `Layer 1A`, `Layer 1B`, and `Layer 2` all exist in their intended roles
+- the paper-facing layers are reproducible from documented commands
+- the relevant comparisons have stored summary artifacts
+- the paper contains one explicit validation result instead of only a prose promise
+
+Scientific grounding for these directions:
+
+- `Tschuchnigg, Schweiger, Sloan 2015`:
+  Davis-style modifications are used to handle non-associated slope plasticity and to obtain accurate `FoS` estimates in difficult cases.
+  Source:
+  <https://www.researchgate.net/publication/281931410_Slope_stability_analysis_by_means_of_finite_element_limit_analysis_and_finite_element_strength_reduction_techniques_Part_I_Numerical_studies_considering_non-associated_plasticity>
+
+- `Oberhollenzer, Tschuchnigg, Schweiger 2018`:
+  `SRFEA` with non-associated plasticity can be unstable, and modified Davis procedures can make `SRFEA` and `FELA` give very similar `FoS` values.
+  Source:
+  <https://www.sciencedirect.com/science/article/pii/S1674775518302129>
+
+- `Simo and Taylor 1985`:
+  standard incremental elastoplastic validation should be tied to the constitutive integration algorithm and its consistent tangent, not just to endpoint energies.
+  Source:
+  <https://www.sciencedirect.com/science/article/pii/0045782585900702>
+
+- `Sysala, Cermak, Ligursky 2015/2017`:
+  Mohr-Coulomb slope stability can be treated with implicit return-mapping, consistent tangents, and 2D/3D benchmark implementations.
+  Source:
+  <https://arxiv.org/abs/1508.07435>
+
+- `Sysala et al. 2021`:
+  optimization-based shear-strength-reduction variants exist and Davis-type modifications can be interpreted within that family, which supports treating the repository surrogate as scientifically meaningful but still approximate.
+  Source:
+  <https://tugraz.elsevierpure.com/en/publications/optimization-and-variational-principles-for-the-shear-strength-re-2>
+
+- `Sysala et al. 2025 (CAS)`:
+  use this paper for Davis-based `SSR` continuation, nonlinear / Krylov solution strategy, mesh-adapted 3D slope workflows, and published `COMSOL`-backed validation context. It is also directly tied to the open-source slope-stability code family mirrored in `tmp/source_compare`.
+  Source:
+  <https://www.sciencedirect.com/science/article/pii/S0045794925002007>
+
+- `Sysala et al. 2025 (SIOPT)`:
+  use this paper for the convex / optimization interpretation of geotechnical stability analysis and the continuation viewpoint on the resulting parametric problem formulations. Treat it as formulation support, not as constitutive ground truth.
+  Source:
+  <https://arxiv.org/abs/2312.12170>
+
+- `Latyshev, Bleyer, Maurini, Hale 2025`:
+  a new constitutive reference path should be verified with explicit numerical checks and correctness testing, not only by visual agreement.
+  Source:
+  <https://jtcam.episciences.org/16616>
+
 4. Separate apples-to-apples results from non-symmetric evidence.
    Create two explicit result classes:
    `Matched comparisons` and `Context / historical comparisons`.
@@ -222,6 +498,98 @@ The goal of the next revision should be to make that claim precise, well-support
    no bibliography errors,
    no broken table inputs,
    no accidental figure drift.
+
+## Execution Type By TODO Item
+
+Legend:
+
+- `Text only`: manuscript, citation, or positioning work; no new code is inherently required.
+- `New experiments only`: likely needs fresh runs or external reproduction work, but not necessarily new repository implementation.
+- `Support code + tests`: likely needs script / pipeline / report updates and at least smoke-level verification.
+- `Possible new scientific implementation`: may require a new benchmark path, reference formulation, or comparison machinery, not just paper edits.
+
+### Phase 1 classification
+
+| Item | Primary Type | Why |
+| --- | --- | --- |
+| 1.1 Freeze the main claim | Text only | This is contribution framing across the abstract, introduction, and conclusion. |
+| 1.2 Choose flagship and support stories | Text only | This is narrative prioritization and section ordering. |
+| 1.3 Decide the primary venue track | Text only | This is submission strategy, not implementation work. |
+| 1.4 Rewrite title and abstract | Text only | Purely manuscript-facing. |
+
+### Phase 2 classification
+
+| Item | Primary Type | Why |
+| --- | --- | --- |
+| 2.1 Add a flagship matched ablation table | Support code + tests | This likely needs fresh controlled runs plus updates to the table / asset pipeline and a small verification pass for the new generated outputs. |
+| 2.2 Add one fair external baseline | New experiments only | In the best case this is a careful reproduction / comparison exercise rather than new repo implementation, although lightweight comparison scripts may still help. |
+| 2.3 Add plasticity surrogate validation | Possible new scientific implementation | This is the one item most likely to require a new reference-comparison path, new diagnostics, or a new reduced validation setup inside the repo. |
+| 2.4 Split matched vs historical evidence explicitly | Text only | This is primarily result framing and labeling. |
+
+### Phase 3 classification
+
+| Item | Primary Type | Why |
+| --- | --- | --- |
+| 3.1 Add a fairness and limitations subsection | Text only | This is explanatory framing for the evidence already in the paper. |
+| 3.2 Audit claims about speed / robustness / scaling / exactness | Text only | Mostly wording cleanup, though some claims should only remain if supported by the new evidence from Phase 2. |
+| 3.3 Make the SOTA table maximally factual | Text only | This is a literature-and-presentation task. |
+| 3.4 Re-check the claim audit after major rewrites | Text only | This is a citation rigor maintenance task. |
+
+### Phase 4 classification
+
+| Item | Primary Type | Why |
+| --- | --- | --- |
+| 4.1 Keep only the strongest narrative arc | Text only | This is manuscript restructuring. |
+| 4.2 Move secondary detail to the appendix | Text only | This is paper organization rather than code work. |
+| 4.3 Make repository-specific modeling choices explicit | Text only | This is wording and attribution discipline, not implementation. |
+| 4.4 End with a modest and precise conclusion | Text only | Purely editorial. |
+
+### Phase 5 classification
+
+| Item | Primary Type | Why |
+| --- | --- | --- |
+| 5.1 Make the compute environment explicit | Text only | The information mostly already exists; this is mainly a paper / artifact note unless you choose to automate environment capture. |
+| 5.2 Ensure every main-text artifact has a documented regeneration command | Support code + tests | This likely needs `Makefile`, generator-script, and documentation updates, plus a quick check that the documented commands still work. |
+| 5.3 Re-run the literature workflow before submission | Text only | This is maintenance on an existing workflow, not inherently new implementation. |
+| 5.4 Prepare a reviewer-facing repository note | Text only | Documentation only. |
+
+### Phase 6 classification
+
+| Item | Primary Type | Why |
+| --- | --- | --- |
+| 6.1 Run an overclaiming pass | Text only | Language cleanup. |
+| 6.2 Run a fairness pass on every baseline | Text only | Evidence interpretation and wording. |
+| 6.3 Run a citation locator pass | Text only | Citation precision only. |
+| 6.4 Rebuild the paper from scratch | Text only | This is a verification step on the existing paper build. |
+
+## What Actually Requires New Code-Like Work
+
+If the question is strictly “what probably needs implementation, scripts, or tests,” the short list is:
+
+1. `2.1` matched ablation table:
+   likely new controlled runs, updates to `paper/scripts/generate_paper_tables.py`, and maybe small smoke tests for new generated table inputs.
+
+2. `2.2` external baseline:
+   probably new experiment / comparison scaffolding, but not necessarily new solver code in this repository.
+
+3. `2.3` plasticity surrogate validation:
+   the most likely item to need genuinely new scientific support code or a new validation implementation.
+
+4. `5.2` regeneration-command hardening:
+   likely small but real engineering work in `Makefile`, paper scripts, and maybe existing tests around report generation.
+
+## Bottom Line
+
+Most of this TODO is still manuscript-facing.
+
+The likely split is:
+
+- `18` items are mainly text / citation / organization work.
+- `1` item is mostly new experiments without obvious new core implementation: `2.2`.
+- `2` items likely need support code and verification work: `2.1`, `5.2`.
+- `1` item may need genuinely new scientific implementation support: `2.3`.
+
+So the paper can progress a long way without major new core solver development, but the highest-value acceptance boosters are not purely editorial.
 
 ## High-ROI Changes If Time Is Short
 
