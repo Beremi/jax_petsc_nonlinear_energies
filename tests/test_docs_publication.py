@@ -278,12 +278,20 @@ def test_current_docs_have_one_problem_and_one_results_page_per_family() -> None
         "GinzburgLandau.md",
         "HyperElasticity.md",
         "Plasticity.md",
+        "Plasticity3D.md",
         "Topology.md",
         "pLaplace.md",
         "pLaplace_u3_thesis_replications.md",
         "pLaplace_up_arctan.md",
     ]
-    assert results == ["GinzburgLandau.md", "HyperElasticity.md", "Plasticity.md", "Topology.md", "pLaplace.md"]
+    assert results == [
+        "GinzburgLandau.md",
+        "HyperElasticity.md",
+        "Plasticity.md",
+        "Plasticity3D.md",
+        "Topology.md",
+        "pLaplace.md",
+    ]
     assert not (DOCS_ROOT / "results" / "pLaplace_up_arctan.md").exists()
 
 

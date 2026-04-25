@@ -12,11 +12,6 @@ import json
 import sys
 from pathlib import Path
 
-import dolfinx
-from mpi4py import MPI
-
-from src.problems.ginzburg_landau.fenics.solver_custom_newton import run_level
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -66,6 +61,11 @@ def main():
 
     if args.state_out and len(args.levels) != 1:
         parser.error("--state-out requires exactly one mesh level")
+
+    import dolfinx
+    from mpi4py import MPI
+
+    from src.problems.ginzburg_landau.fenics.solver_custom_newton import run_level
 
     comm = MPI.COMM_WORLD
     rank = comm.rank

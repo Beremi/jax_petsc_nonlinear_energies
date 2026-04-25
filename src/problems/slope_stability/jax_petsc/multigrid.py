@@ -231,9 +231,11 @@ class PMGObserverSuite:
         entries: list[dict[str, object]],
         *,
         keepalive_mats: list[PETSc.Mat] | None = None,
+        keepalive_objects: list[object] | None = None,
     ):
         self._entries = list(entries)
         self._keepalive_mats = list(keepalive_mats or [])
+        self._keepalive_objects = list(keepalive_objects or [])
 
     def reset(self) -> None:
         for entry in self._entries:
@@ -1471,12 +1473,26 @@ def configure_pmg(
     pc.setMGLevels(len(hierarchy.levels))
     pc.setMGType(PETSc.PC.MGType.MULTIPLICATIVE)
     pc.setMGCycleType(PETSc.PC.MGCycleType.V)
+    keepalive_objects: list[object] = []
     for level_idx, (prolong, restrict) in enumerate(
         zip(hierarchy.prolongations, hierarchy.restrictions),
         start=1,
     ):
         pc.setMGInterpolation(level_idx, prolong)
         pc.setMGRestriction(level_idx, restrict)
+
+    finest_level_idx = len(hierarchy.levels) - 1
+    for level_idx, space in enumerate(hierarchy.levels):
+        if level_idx < finest_level_idx:
+            x_vec = _create_level_template_vec(space, ksp.comm)
+            rhs_vec = _create_level_template_vec(space, ksp.comm)
+            pc.setMGX(level_idx, x_vec)
+            pc.setMGRhs(level_idx, rhs_vec)
+            keepalive_objects.extend([x_vec, rhs_vec])
+        if 0 < level_idx < finest_level_idx:
+            r_vec = _create_level_template_vec(space, ksp.comm)
+            pc.setMGR(level_idx, r_vec)
+            keepalive_objects.append(r_vec)
 
     smoother_defaults = dict(level_smoothers or {})
     default_cfg = LegacyPMGLevelSmootherConfig(
@@ -1487,7 +1503,6 @@ def configure_pmg(
     fine_cfg = smoother_defaults.get("fine", default_cfg)
     p2_cfg = smoother_defaults.get("degree2", default_cfg)
     p1_cfg = smoother_defaults.get("degree1", default_cfg)
-    finest_level_idx = len(hierarchy.levels) - 1
     observer_entries: list[dict[str, object]] = []
     for level_idx in range(1, len(hierarchy.levels)):
         level_space = hierarchy.levels[level_idx]
@@ -1542,7 +1557,7 @@ def configure_pmg(
         sweep_role="coarse",
         entries=observer_entries,
     )
-    return PMGObserverSuite(observer_entries)
+    return PMGObserverSuite(observer_entries, keepalive_objects=keepalive_objects)
 
 
 def configure_explicit_pmg(
@@ -1634,6 +1649,7 @@ def configure_explicit_pmg(
     pc.setMGCycleType(PETSc.PC.MGCycleType.V)
     observer_entries: list[dict[str, object]] = []
     keepalive_transfer_mats: list[PETSc.Mat] = []
+    keepalive_objects: list[object] = []
     for level_idx, (prolong, restrict) in enumerate(
         zip(hierarchy.prolongations, hierarchy.restrictions),
         start=1,
@@ -1686,10 +1702,15 @@ def configure_explicit_pmg(
     finest_level_idx = len(hierarchy.levels) - 1
     for level_idx, space in enumerate(hierarchy.levels):
         if level_idx < finest_level_idx:
-            pc.setMGX(level_idx, _create_level_template_vec(space, ksp.comm))
-            pc.setMGRhs(level_idx, _create_level_template_vec(space, ksp.comm))
+            x_vec = _create_level_template_vec(space, ksp.comm)
+            rhs_vec = _create_level_template_vec(space, ksp.comm)
+            pc.setMGX(level_idx, x_vec)
+            pc.setMGRhs(level_idx, rhs_vec)
+            keepalive_objects.extend([x_vec, rhs_vec])
         if 0 < level_idx < finest_level_idx:
-            pc.setMGR(level_idx, _create_level_template_vec(space, ksp.comm))
+            r_vec = _create_level_template_vec(space, ksp.comm)
+            pc.setMGR(level_idx, r_vec)
+            keepalive_objects.append(r_vec)
 
     degree_pc_types = dict(intermediate_degree_pc_types or {})
     fine_down_ksp_type = str(finest_smoother_down_ksp_type or finest_smoother_ksp_type)
@@ -1810,7 +1831,11 @@ def configure_explicit_pmg(
         sweep_role="coarse",
         entries=observer_entries,
     )
-    return PMGObserverSuite(observer_entries, keepalive_mats=keepalive_transfer_mats)
+    return PMGObserverSuite(
+        observer_entries,
+        keepalive_mats=keepalive_transfer_mats,
+        keepalive_objects=keepalive_objects,
+    )
 
 
 def update_explicit_pmg_operators(

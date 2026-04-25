@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import importlib
 import subprocess
 import sys
 from pathlib import Path
@@ -9,6 +10,14 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _optional_dependency_available(module_name: str) -> tuple[bool, str]:
+    try:
+        importlib.import_module(module_name)
+    except Exception as exc:  # pragma: no cover - message depends on local stack
+        return False, f"{type(exc).__name__}: {exc}"
+    return True, ""
 
 
 @pytest.mark.parametrize(
@@ -81,6 +90,11 @@ def test_cli_creates_missing_output_directories(
     check_keys: list[str],
     tmp_path: Path,
 ) -> None:
+    if "/fenics/" in script_path:
+        available, reason = _optional_dependency_available("dolfinx")
+        if not available:
+            pytest.skip(f"DOLFINx stack is unavailable: {reason}")
+
     out_path = tmp_path / "nested" / "results" / "run.json"
     resolved_extra_args = list(extra_args)
     if "__STATE_PLACEHOLDER__" in resolved_extra_args:

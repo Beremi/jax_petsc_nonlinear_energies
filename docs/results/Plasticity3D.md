@@ -49,10 +49,10 @@ Recommended settings:
 
 Raw artifacts:
 
-- [local-only scaling report](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/source_compare/plasticity3d_l1_2_lambda1_grad1e2_local_pmg_scaling/REPORT.md)
-- [local-only scaling summary](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/source_compare/plasticity3d_l1_2_lambda1_grad1e2_local_pmg_scaling/comparison_summary.json)
-- [matched local-vs-source report](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/source_compare/plasticity3d_l1_2_lambda1_grad1e2_scaling/REPORT.md)
-- [all-PMG comparison report](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/source_compare/plasticity3d_l1_2_lambda1_grad1e2_scaling_all_pmg/REPORT.md)
+- [local-only scaling report](../../artifacts/raw_results/source_compare/plasticity3d_l1_2_lambda1_grad1e2_local_pmg_scaling/REPORT.md)
+- [local-only scaling summary](../../artifacts/raw_results/source_compare/plasticity3d_l1_2_lambda1_grad1e2_local_pmg_scaling/comparison_summary.json)
+- [matched local-vs-source report](../../artifacts/raw_results/source_compare/plasticity3d_l1_2_lambda1_grad1e2_scaling/REPORT.md)
+- [all-PMG comparison report](../../artifacts/raw_results/source_compare/plasticity3d_l1_2_lambda1_grad1e2_scaling_all_pmg/REPORT.md)
 
 ### Full Strong Scaling
 
@@ -261,7 +261,7 @@ keeps the local work in the same ballpark. For this comparison we use a capped
 
 Raw weak-scaling report:
 
-- [P4(L1) vs P4(L1_2) weak-scaling report](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/weak_scaling_probe/p4_l1_vs_l1_2_maxit20/REPORT.md)
+- [P4(L1) vs P4(L1_2) weak-scaling report](../../artifacts/raw_results/weak_scaling_probe/p4_l1_vs_l1_2_maxit20/REPORT.md)
 
 Outcome summary:
 

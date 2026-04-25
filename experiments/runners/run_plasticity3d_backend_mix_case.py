@@ -874,6 +874,7 @@ def _local_problem_args(
     mesh_name: str = "hetero_ssr_L1",
     elem_degree: int = 4,
     constraint_variant: str = DEFAULT_PLASTICITY3D_CONSTRAINT_VARIANT,
+    local_hessian_mode: str = "element",
     autodiff_tangent_mode: str = "element",
     ksp_rtol: float = 1.0e-2,
     ksp_max_it: int = 100,
@@ -901,7 +902,7 @@ def _local_problem_args(
         problem_build_mode="rank_local",
         element_reorder_mode="block_xyz",
         distribution_strategy="overlap_p2p",
-        local_hessian_mode="element",
+        local_hessian_mode=str(local_hessian_mode),
         autodiff_tangent_mode=str(autodiff_tangent_mode),
         reuse_hessian_value_buffers=bool(reuse_hessian_value_buffers),
         p4_hessian_chunk_size=int(p4_hessian_chunk_size),
@@ -1003,6 +1004,7 @@ def _build_local_assembly_backend(
     elem_degree: int = 4,
     constraint_variant: str = DEFAULT_PLASTICITY3D_CONSTRAINT_VARIANT,
     lambda_target: float = 1.5,
+    local_hessian_mode: str = "element",
     autodiff_tangent_mode: str = "element",
     ksp_rtol: float = 1.0e-2,
     ksp_max_it: int = 100,
@@ -1015,6 +1017,7 @@ def _build_local_assembly_backend(
         mesh_name=str(mesh_name),
         elem_degree=int(elem_degree),
         constraint_variant=str(constraint_variant),
+        local_hessian_mode=str(local_hessian_mode),
         autodiff_tangent_mode=str(autodiff_tangent_mode),
         ksp_rtol=float(ksp_rtol),
         ksp_max_it=int(ksp_max_it),
@@ -1034,7 +1037,7 @@ def _build_local_assembly_backend(
         use_near_nullspace=False,
         pc_options={},
         reorder_mode="block_xyz",
-        local_hessian_mode="element",
+        local_hessian_mode=str(local_hessian_mode),
         autodiff_tangent_mode=str(autodiff_tangent_mode),
         perm_override=perm_override,
         block_size_override=ownership_block_size_3d(
@@ -2904,7 +2907,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--assembly-backend",
-        choices=("local", "local_constitutiveAD", "source"),
+        choices=("local", "local_constitutiveAD", "local_sfd", "source"),
         required=True,
     )
     parser.add_argument(
@@ -2995,12 +2998,17 @@ def main() -> None:
 
     pmg_support = None
     lazy_pmg_config: dict[str, object] | None = None
-    if str(args.assembly_backend) in {"local", "local_constitutiveAD"}:
+    if str(args.assembly_backend) in {"local", "local_constitutiveAD", "local_sfd"}:
         backend = _build_local_assembly_backend(
             mesh_name=str(args.mesh_name),
             elem_degree=int(elem_degree),
             constraint_variant=str(constraint_variant),
             lambda_target=float(args.lambda_target),
+            local_hessian_mode=(
+                "sfd_local"
+                if str(args.assembly_backend) == "local_sfd"
+                else "element"
+            ),
             autodiff_tangent_mode=(
                 "constitutive"
                 if str(args.assembly_backend) == "local_constitutiveAD"
@@ -3165,7 +3173,7 @@ def main() -> None:
     payload["state_out"] = "" if args.state_out is None else str(Path(args.state_out).resolve())
     payload["same_mesh_case_path"] = (
         str(same_mesh_case_hdf5_path(str(args.mesh_name), int(elem_degree), constraint_variant))
-        if str(args.assembly_backend) in {"local", "local_constitutiveAD"}
+        if str(args.assembly_backend) in {"local", "local_constitutiveAD", "local_sfd"}
         else ""
     )
     payload["stage_timings"] = _stage_timings_from_stage_file(stage_path)

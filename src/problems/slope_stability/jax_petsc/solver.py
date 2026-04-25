@@ -609,6 +609,19 @@ def run(args, problem_data=None):
         preconditioner_operator=preconditioner_operator,
         mg_variant=mg_variant,
     )
+    if (
+        str(settings["pc_type"]) == "mg"
+        and str(mg_strategy) == "same_mesh_p4_p2_p1"
+        and str(explicit_mg_settings["coarse_pc_type"]) == "hypre"
+        and int(explicit_mg_settings["coarse_hypre_vec_interp_variant"]) >= 0
+    ):
+        # This same-mesh P1 coarse solve is already block-structured, but the
+        # BoomerAMG vector interpolation option can segfault in PETSc/Hypre for
+        # this 2D hierarchy. Keep nodal coarsening and disable only that option.
+        explicit_mg_settings["coarse_hypre_vec_interp_variant"] = -1
+        explicit_mg_settings["coarse_hypre_vec_interp_variant_guarded"] = True
+    else:
+        explicit_mg_settings["coarse_hypre_vec_interp_variant_guarded"] = False
     frozen_fine_pmat = _is_frozen_fine_pmat_policy(fine_pmat_policy)
     staggered_whole_fine_pmat = _is_staggered_whole_pmat_policy(fine_pmat_policy)
     staggered_smoother_fine_pmat = _is_staggered_smoother_pmat_policy(fine_pmat_policy)
@@ -1780,6 +1793,9 @@ def run(args, problem_data=None):
                 "mg_coarse_hypre_vec_interp_variant": int(
                     explicit_mg_settings["coarse_hypre_vec_interp_variant"]
                 ),
+                "mg_coarse_hypre_vec_interp_variant_guarded": bool(
+                    explicit_mg_settings["coarse_hypre_vec_interp_variant_guarded"]
+                ),
                 "mg_coarse_hypre_strong_threshold": (
                     None
                     if explicit_mg_settings["coarse_hypre_strong_threshold"] is None
@@ -1874,6 +1890,9 @@ def run(args, problem_data=None):
                     ),
                     "mg_coarse_hypre_vec_interp_variant": int(
                         explicit_mg_settings["coarse_hypre_vec_interp_variant"]
+                    ),
+                    "mg_coarse_hypre_vec_interp_variant_guarded": bool(
+                        explicit_mg_settings["coarse_hypre_vec_interp_variant_guarded"]
                     ),
                     "mg_coarse_hypre_strong_threshold": (
                         None

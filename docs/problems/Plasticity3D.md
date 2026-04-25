@@ -129,15 +129,15 @@ highest-resolution glued-bottom runs.
 
 | Degree | Mesh | Free DOFs | Final energy | Total [s] | Status | Artifact |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| `P1` | `L1` | `10526` | `-2953167.192979` | `1.789` | `completed` | [artifact](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/docs_showcase/plasticity3d_p1_l1_lambda1p55_np32_grad1e2) |
-| `P1` | `L1_2` | `79024` | `-2991497.081546` | `8.718` | `completed` | [artifact](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/docs_showcase/plasticity3d_p1_l1_2_lambda1p55_np32_grad1e2) |
-| `P1` | `L1_2_3` | `610964` | `-3004742.236841` | `17.185` | `completed` | [artifact](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/docs_showcase/plasticity3d_p1_l1_2_3_lambda1p55_np32_grad1e2) |
-| `P1` | `L1_2_3_4` | `4801816` | `-3009657.690686` | `96.654` | `completed` | [artifact](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/docs_showcase/plasticity3d_p1_l1_2_3_4_lambda1p55_np32_grad1e2) |
-| `P2` | `L1` | `79024` | `-3012813.367652` | `18.345` | `completed` | [artifact](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/docs_showcase/plasticity3d_p2_l1_lambda1p55_np32_grad1e2) |
-| `P2` | `L1_2` | `610964` | `-3013031.801279` | `98.320` | `completed` | [artifact](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/docs_showcase/plasticity3d_p2_l1_2_lambda1p55_np32_grad1e2) |
-| `P2` | `L1_2_3` | `4801816` | `-3013148.753130` | `1330.084` | `completed` | [artifact](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/docs_showcase/plasticity3d_p2_l1_2_3_lambda1p55_np32_grad1e2) |
-| `P4` | `L1` | `610964` | `-3013227.482027` | `208.214` | `completed` | [artifact](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/docs_showcase/plasticity3d_p4_l1_lambda1p55_np32_grad1e2) |
-| `P4` | `L1_2` | `4801816` | `-3013348.094121` | `2298.160` | `completed` | [artifact](/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/docs_showcase/plasticity3d_p4_l1_2_lambda1p55_np32_grad1e2) |
+| `P1` | `L1` | `10526` | `-2953167.192979` | `1.789` | `completed` | [artifact](../../artifacts/raw_results/docs_showcase/plasticity3d_p1_l1_lambda1p55_np32_grad1e2) |
+| `P1` | `L1_2` | `79024` | `-2991497.081546` | `8.718` | `completed` | [artifact](../../artifacts/raw_results/docs_showcase/plasticity3d_p1_l1_2_lambda1p55_np32_grad1e2) |
+| `P1` | `L1_2_3` | `610964` | `-3004742.236841` | `17.185` | `completed` | [artifact](../../artifacts/raw_results/docs_showcase/plasticity3d_p1_l1_2_3_lambda1p55_np32_grad1e2) |
+| `P1` | `L1_2_3_4` | `4801816` | `-3009657.690686` | `96.654` | `completed` | [artifact](../../artifacts/raw_results/docs_showcase/plasticity3d_p1_l1_2_3_4_lambda1p55_np32_grad1e2) |
+| `P2` | `L1` | `79024` | `-3012813.367652` | `18.345` | `completed` | [artifact](../../artifacts/raw_results/docs_showcase/plasticity3d_p2_l1_lambda1p55_np32_grad1e2) |
+| `P2` | `L1_2` | `610964` | `-3013031.801279` | `98.320` | `completed` | [artifact](../../artifacts/raw_results/docs_showcase/plasticity3d_p2_l1_2_lambda1p55_np32_grad1e2) |
+| `P2` | `L1_2_3` | `4801816` | `-3013148.753130` | `1330.084` | `completed` | [artifact](../../artifacts/raw_results/docs_showcase/plasticity3d_p2_l1_2_3_lambda1p55_np32_grad1e2) |
+| `P4` | `L1` | `610964` | `-3013227.482027` | `208.214` | `completed` | [artifact](../../artifacts/raw_results/docs_showcase/plasticity3d_p4_l1_lambda1p55_np32_grad1e2) |
+| `P4` | `L1_2` | `4801816` | `-3013348.094121` | `2298.160` | `completed` | [artifact](../../artifacts/raw_results/docs_showcase/plasticity3d_p4_l1_2_lambda1p55_np32_grad1e2) |
 
 ![Plasticity3D glued-bottom highest-mesh y-slice comparison](../assets/plasticity3d/plasticity3d_lambda1p55_highest_mesh_y_slice_comparison.png)
 
@@ -334,7 +334,7 @@ a source-history bookkeeping quirk rather than a true state mismatch.
 
 - work relative diff: `3.877021e-05`
 - displacement relative L2 diff: `3.517247e-03`
-- deviatoric-strain relative L2 diff: `8.857115e-03`
+- deviatoric-strain relative L2 diff: `8.720006e-03`
 
 ### Branch visual summary
 

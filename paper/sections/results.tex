@@ -1,10 +1,14 @@
 \label{sec:numerical-examples}
 
-This section turns from problem definition to computational behaviour. The
+This section turns from problem definition to computational behavior. The
 benchmark families in \Cref{sec:benchmarks} established the governing
 equations, discrete energies, and representative states. Here we focus on
 parallel timings, scaling trends, and the comparative cost of alternative
-solver or discretisation choices.
+solver or discretization choices. We distinguish matched comparisons from
+historical or context-only evidence. Matched comparisons keep the problem
+contract fixed across implementations or derivative routes; historical evidence
+is retained when it is still informative for workflow viability, but it is
+labeled as such rather than merged into the matched-comparison story.
 
 \subsection{\texorpdfstring{$p$-Laplace}{p-Laplace}}
 \label{sec:num-plaplace}
@@ -46,10 +50,50 @@ contract.
 
 The hyperelasticity problem definition, boundary data, and terminal energies
 are given in \Cref{sec:bench-he,eq:hyperelasticity-discrete}. Computationally,
-this family stresses the globalization logic more than the derivative route:
-the key result is that the distributed implementation completes the full
-24-step path while tracking the terminal energy trend reported in the benchmark
-summary.
+this family now serves two roles. First, it remains the maintained benchmark in
+which globalization matters more than derivative-route choice: the distributed
+implementation completes the full load path and preserves the terminal energy
+trend from \Cref{sec:bench-he}. Second, it provides the cleanest matched
+external-baseline surface in the paper through a serial companion case against
+JAX-FEM on the same mesh, material law, and displacement schedule.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.46\PaperFigureFull}
+    \centering
+    \includegraphics[width=\linewidth]{jax_fem_hyperelastic_baseline_energy_history.pdf}
+    \caption{Terminal energy over the matched displacement schedule.}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{0.46\PaperFigureFull}
+    \centering
+    \includegraphics[width=\linewidth]{jax_fem_hyperelastic_baseline_centerline.pdf}
+    \caption{Final centerline $u_x$ profile on the common sample path.}
+  \end{subfigure}
+  \caption{Matched serial hyperelastic companion baseline against JAX-FEM on
+  identical mesh, constitutive law, and displacement schedule.}
+  \label{fig:hyperelasticity-jaxfem-baseline}
+\end{figure}
+
+\begin{table}[H]
+  \centering
+  \input{tables/generated/jax_fem_hyperelastic_baseline.tex}
+  \caption{Fairness-gated hyperelastic companion comparison against JAX-FEM.}
+  \label{tab:hyperelasticity-jaxfem-baseline}
+\end{table}
+
+The fairness gate in \Cref{tab:hyperelasticity-jaxfem-baseline} passes on all
+checked quantities. The exact mesh/material/schedule contract is satisfied, the
+final energy relative difference is $8.244\times10^{-6}$, the full-field
+displacement relative $L^2$ difference is $2.011\times10^{-4}$, the centerline
+relative $L^2$ difference is $5.473\times10^{-5}$, and the
+$u_{\max}$-curve relative $L^2$ difference is effectively zero. This is useful
+as a narrow implementation comparison because the contract is matched tightly;
+the timing rows should not be read as a broad framework ranking. On this small
+serial CPU companion case, the maintained direct solve is faster
+(\SI{0.176}{s} median wall time versus \SI{2.524}{s} for JAX-FEM), but the
+main point is parity of the discrete solution rather than serial timing
+dominance.
 
 \begin{figure}[H]
   \centering
@@ -77,9 +121,91 @@ to the later evidence section.
 The governing problem, Davis-B reduction, scalar constitutive potential, and
 deviatoric-strain norm are defined in
 \Cref{sec:bench-plasticity3d,eq:plasticity3d-discrete,eq:plasticity3d-davis,eq:plasticity3d-potential,eq:plasticity3d-devnorm}.
-This subsection focuses on two distinct questions: how the maintained
-discretisation families compare at fixed nonlinear target, and how the
-recommended maintained stack scales on the promoted $P4(L1_2)$ campaign.
+This family has to be read in three layers: validation of the maintained
+surrogate against source-family references, derivative-route choice on one locked
+flagship case, and only then maintained discretization and historical scaling
+evidence.
+
+\paragraph{Validation.}
+The first question is not scaling but interpretation. Because
+\Cref{sec:bench-plasticity3d} defines an algorithmic endpoint surrogate, the
+paper separates same-case source-faithfulness from a fixed-lambda
+source-operator comparison. The same-case direct-branch comparison on the
+glued-bottom \code{P2(L1)} case is tight: the layer-1A work relative
+difference is $3.877\times10^{-5}$, the displacement relative $L^2$
+difference is $3.517\times10^{-3}$, and the deviatoric-strain relative $L^2$
+difference is $8.720\times10^{-3}$. The fixed-lambda source-operator layer
+keeps the highest-successful-$\lambda$ schedule proxy aligned on the tested
+grid, but it does not satisfy the stricter field-agreement thresholds: the
+$u_{\max}(\lambda)$ relative $L^2$ difference is $1.756\times10^{-1}$, the
+endpoint displacement relative $L^2$ difference is $5.295\times10^{-1}$, and
+the boundary-profile relative $L^2$ difference is $5.065\times10^{-1}$.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.46\PaperFigureFull}
+    \centering
+    \includegraphics[width=\linewidth]{plasticity3d_validation_layer1a_boundary.pdf}
+    \caption{Layer 1A: same-case source-faithfulness on the surrogate.}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{0.46\PaperFigureFull}
+    \centering
+    \includegraphics[width=\linewidth]{plasticity3d_validation_umax_curve.pdf}
+    \caption{Layer 2: fixed-lambda source-operator $u_{\max}(\lambda)$ comparison.}
+  \end{subfigure}
+  \caption{Plasticity3D validation ladder. The left panel documents tight
+  same-case source-faithfulness for the implemented surrogate; the right panel
+  shows that agreement with the source-operator reference is weaker on field
+  observables and therefore bounds the constitutive interpretation of the
+  benchmark.}
+  \label{fig:plasticity3d-validation}
+\end{figure}
+
+\begin{table}[H]
+  \centering
+  \input{tables/generated/plasticity3d_validation_summary.tex}
+  \caption{Plasticity3D validation summary for same-case source-faithfulness
+  (layer 1A) and fixed-lambda source-operator comparison (layer 2).}
+  \label{tab:plasticity3d-validation}
+\end{table}
+
+The paper therefore treats Plasticity3D as a source-faithful maintained
+surrogate workflow, not as a constitutively equivalent replacement for a
+path-consistent incremental elastoplastic history solve.
+
+\paragraph{Derivative-route ablation.}
+With that interpretation fixed, the next question is which second-order route
+is the best fit for the promoted maintained workflow. On the locked
+\code{P4(L1)} case at $\lambda_{\mathrm{sr}}=1.5$ and 8 MPI ranks, all three
+routes converge to essentially the same terminal state, with identical Newton
+and total Krylov counts. The differences are therefore cost differences, not
+state-quality differences: constitutive AD is the fastest route with median
+wall time \SI{221.689}{s} and median solve time \SI{190.503}{s}, compared with
+\SI{288.021}{s}/\SI{254.879}{s} for element AD and
+\SI{371.993}{s}/\SI{252.814}{s} for colored SFD.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\PaperFigureMedium]{plasticity3d_derivative_ablation_bars.pdf}
+  \caption{Locked Plasticity3D derivative-route ablation on
+  \code{P4(L1)}, $\lambda_{\mathrm{sr}}=1.5$, and 8 MPI ranks.}
+  \label{fig:plasticity3d-derivative-ablation}
+\end{figure}
+
+\begin{table}[H]
+  \centering
+  \input{tables/generated/plasticity3d_derivative_ablation.tex}
+  \caption{Plasticity3D derivative-route ablation on the locked
+  \code{P4(L1)}, $\lambda_{\mathrm{sr}}=1.5$, 8-rank case.}
+  \label{tab:plasticity3d-derivative-ablation}
+\end{table}
+
+\paragraph{Maintained discretization and historical scaling.}
+The remaining figures in this subsection answer a different question: how the
+maintained surrogate behaves across degree/resolution choices, and how the
+recommended maintained stack scales on the separate promoted
+\code{P4(L1\_2)} campaign.
 
 \begin{figure}[H]
   \centering

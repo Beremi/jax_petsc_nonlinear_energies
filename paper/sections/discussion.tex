@@ -1,44 +1,59 @@
-The results support three main conclusions.
+\label{sec:discussion}
 
-\paragraph{Exact second-order information is worthwhile, but not everywhere in
-the same way.}
-In the scalar benchmark families reported here, exact element Hessians were the
-cleanest and often fastest choice. On \plasticitythree{}, exact constitutive
-tangents were the practical winner because they preserve the energy-based AD
-story while avoiding the cost of full element Hessians on high-order
-tetrahedra. On other problems, colored SFD remains methodologically useful
-because it gives a structured approximation without requiring a hand-derived
-tangent.
+The results support four main conclusions.
 
-\paragraph{The best preconditioner is not always the one with the fewest Krylov
-iterations.}
-Several comparison studies in the repository illustrate this point, and the
-paper keeps the conclusion explicit. Some PMG profiles reduce iteration counts
-while still losing on wall-clock time because each apply is much more
-expensive. In the \plasticitythree{} comparisons reported here, lower Krylov
-counts did not always translate into lower wall-clock time. This is why the
-paper emphasizes both iteration counts and component timings.
+\paragraph{Constitutive AD is the best derivative route on the flagship
+Plasticity3D case.}
+\Cref{fig:plasticity3d-derivative-ablation,tab:plasticity3d-derivative-ablation}
+show a clean cost-quality picture on the locked
+\code{P4(L1)}, $\lambda_{\mathrm{sr}}=1.5$, 8-rank case. All three routes
+reach essentially the same terminal state with the same nonlinear and Krylov
+counts, so the comparison is about cost rather than about different converged
+solutions. On that evidence, constitutive AD is the preferred maintained route:
+it preserves the scalar-energy implementation contract while reducing wall time
+substantially relative to full element AD and colored SFD.
 
-\paragraph{Reference implementations remain essential.}
-The \fenics{} and \purejax{} paths are not just historical leftovers. They make
-the mainline \jaxpetsc{} story more interpretable by exposing where the
-maintained production stack is genuinely adding something new and where it is
-merely reproducing a smaller reference implementation at larger scale. The
-benchmark families also make clear that references are unevenly available:
-topology has a strong \purejax{} serial reference but no maintained \fenics{}
-counterpart; \plasticitythree{} has source-assembly engineering comparisons but
-not a maintained \fenics{} or \purejax{} baseline.
+\paragraph{Validation has to be separated by claim level.}
+The new Plasticity3D validation ladder in
+\Cref{fig:plasticity3d-validation,tab:plasticity3d-validation} changes how the
+paper should phrase its mechanics claims. Same-case source-faithfulness to the
+source-style surrogate implementation is strong, and that is an important
+result for software credibility. However, the fixed-lambda source-operator
+comparison does not satisfy the stricter agreement thresholds on
+$u_{\max}(\lambda)$ and endpoint displacement fields. The right interpretation
+is therefore limited but still publishable: the maintained implementation
+faithfully reproduces the intended surrogate workflow, yet the present evidence
+does not justify describing that surrogate as constitutively equivalent to a
+path-consistent incremental elastoplastic history solve.
 
-There are also limitations that the paper should state plainly. The topology
-fine-grid scaling study is end-to-end, not fixed-work. The 2D plasticity large
-scaling campaign is intentionally capped at a fixed Newton budget. Some of the
-source/local PMG profile comparisons remain engineering diagnostics rather than
-fully symmetric scientific baselines. None of these caveats invalidate the
-results, but they do affect how claims should be phrased.
+\paragraph{Matched external baselines are useful when the contract is narrow.}
+The hyperelastic companion comparison against JAX-FEM in
+\Cref{fig:hyperelasticity-jaxfem-baseline,tab:hyperelasticity-jaxfem-baseline}
+shows that a narrow, fairness-first external baseline can survive review-level
+scrutiny. Here the exact mesh, constitutive law, and displacement schedule are
+matched, and the resulting energy and field differences are very small. That
+baseline is useful precisely because it is narrow. The paper should not
+generalize it into a broad ranking between frameworks, but it does strengthen
+the manuscript by showing that at least one recent external implementation can
+be matched on a shared problem contract.
 
-The broader methodological lesson is that differentiable FEM is most useful
-when it is paired with solver-aware engineering. Automatic differentiation by
-itself does not solve nonlinear FEM. Sparse layout, preconditioning, Krylov
-policy, globalization, and distributed ownership rules are all part of the
-final scientific behavior. The main contribution of \repo{} is to show that
-these pieces can be kept together in one maintained implementation surface.
+\paragraph{Fairness and limitations remain part of the scientific result.}
+Several limitations should stay explicit. The promoted Plasticity3D strong
+scaling campaign at $\lambda_{\mathrm{sr}}=1.0$ is historical workflow
+evidence, not a direct continuation of the glued-bottom
+$\lambda_{\mathrm{sr}}=1.55$ matched-comparison figures. The topology study is
+reported as end-to-end workflow scaling rather than fixed-work strong scaling.
+Some source/local PMG studies remain solver-engineering diagnostics rather than
+fully symmetric scientific baselines. None of these caveats erase the paper's
+main contribution, but they do define its proper scope: a maintained
+software-and-methods workflow with explicit derivative-route choices, explicit
+validation surfaces, and explicit fairness boundaries.
+
+The broader methodological lesson is that differentiable FEM becomes most
+scientifically useful when local differentiation and sparse solver engineering
+are designed together. Automatic differentiation alone does not settle the
+behavior of large nonlinear FEM workflows; globalization, sparse ownership,
+preconditioning, and the interpretation of surrogate models matter just as
+much. Within that scoped claim, \repo{} contributes a reproducible maintained
+workflow rather than a universal differentiable-PDE platform or a new
+constitutive theory.

@@ -1,29 +1,35 @@
-This paper presented \repo{} as a methods-and-software framework for nonlinear
-finite-element solves and optimization with a maintained \jaxpetsc{} production path.
-Across scalar diffusion, phase-field, hyperelasticity, plasticity, and
-topology optimization benchmarks, the repository demonstrates that exact or
-near-exact derivative information can be integrated with scalable sparse
-nonlinear solvers in a way that is both methodologically useful and
-implementation-conscious.
+This paper presented \repo{} as a software-and-methods workflow for nonlinear
+finite-element solves and optimization with a maintained \jaxpetsc{} production
+path. The central contribution is not a new constitutive theory or a universal
+differentiable-PDE abstraction, but a maintained implementation pattern in
+which local JAX differentiation, sparse PETSc nonlinear solves, and multiple
+second-order routes are kept together across a heterogeneous benchmark suite.
 
-The strongest flagship result is the promoted \plasticitythree{} study on
-\code{P4(L1\_2)} at $\lambda=1.0$, where the maintained
-\localpmg{} stack converges to one matched nonlinear target on
-1/2/4/8/16/32 ranks and reaches $\num{18.05}\times$ end-to-end speedup at 32 ranks.
-The topology benchmark complements this by showing that the same repository can
-also sustain a distributed optimization workflow in which mechanics and design
-updates evolve together on a fine grid.
+The strongest new evidence is now more precise than the paper's original broad
+claim. On Plasticity3D, same-case source-faithfulness to the source-style
+surrogate implementation is strong, while the fixed-lambda source-operator
+comparison does not support constitutive-equivalence language. The correct
+reading is therefore that the repository provides a supported maintained
+surrogate workflow for this benchmark family, with constitutive AD emerging as
+the best cost-quality route on the locked flagship case. On Hyperelasticity,
+the matched companion baseline against JAX-FEM shows that the maintained code
+can agree very closely with a recent external implementation when the problem
+contract is made genuinely symmetric. The promoted historical Plasticity3D
+scaling campaign and the distributed topology workflow then show that the same
+codebase remains operational beyond small matched comparisons.
 
-Future work should follow the structure revealed by the current results:
+Future work should follow the boundaries made visible by these results:
 \begin{itemize}
-  \item extend constitutive AD and scalable second-order infrastructure to
-        additional path-dependent models;
-  \item strengthen the reference surface where \fenics{} or \purejax{} baselines
-        are still missing;
-  \item continue reducing the cost of linear setup and top-level multigrid work
-        in the flagship 3D mechanics problems.
+  \item extend the validation surface for path-dependent mechanics beyond the
+        current surrogate-versus-source-operator comparison, including a true
+        incremental-history reference;
+  \item add more fairness-first external baselines on tightly matched problem
+        contracts;
+  \item continue reducing linear-setup and multigrid costs in the flagship 3D
+        mechanics workflows.
 \end{itemize}
 
-The next scientific step is to turn the current maintained implementation
-patterns into a reusable template for additional nonlinear multiphysics and
-design problems.
+The next scientific step is not to overclaim the current implementation, but
+to turn this maintained workflow into a stronger reusable template for
+additional nonlinear multiphysics and design problems with equally explicit
+validation and fairness criteria.

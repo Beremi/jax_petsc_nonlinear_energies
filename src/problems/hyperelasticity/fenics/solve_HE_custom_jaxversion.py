@@ -12,10 +12,6 @@ import argparse
 import json
 from pathlib import Path
 
-from mpi4py import MPI
-
-from src.problems.hyperelasticity.fenics.solver_custom_newton import run_level
-
 
 def _add_legacy_store_false(
     parser: argparse.ArgumentParser,
@@ -403,6 +399,10 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
+
+    from mpi4py import MPI
+
+    from src.problems.hyperelasticity.fenics.solver_custom_newton import run_level
 
     result = run_level(
         args.level,

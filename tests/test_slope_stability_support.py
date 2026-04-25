@@ -44,8 +44,9 @@ def test_supported_level_counts_and_h_are_exact():
         4: {"h": 0.5, "nodes": 10641, "elements": 5200, "free_dofs": 20840},
         5: {"h": 0.25, "nodes": 42081, "elements": 20800, "free_dofs": 83280},
         6: {"h": 0.125, "nodes": 167361, "elements": 83200, "free_dofs": 332960},
+        7: {"h": 0.0625, "nodes": 667521, "elements": 332800, "free_dofs": 1331520},
     }
-    assert supported_levels() == (1, 2, 3, 4, 5, 6)
+    assert supported_levels() == (1, 2, 3, 4, 5, 6, 7)
     for level, counts in expected.items():
         case = build_case_data(case_name_for_level(level))
         assert h_for_level(level) == counts["h"]
@@ -59,7 +60,7 @@ def test_supported_level_counts_and_h_are_exact():
 
 def test_all_level_hdf5_snapshots_are_materialized():
     paths = ensure_all_level_case_hdf5()
-    assert len(paths) == 7
+    assert len(paths) == 8
     for path in paths:
         assert path.exists()
 

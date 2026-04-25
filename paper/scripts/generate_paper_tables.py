@@ -24,6 +24,11 @@ P3D_DEGREE_ENERGY_STUDY_SUMMARY = (
     REPO_ROOT
     / "artifacts/raw_results/plasticity3d_lambda1p55_degree_mesh_energy_study/comparison_summary.json"
 )
+P3D_VALIDATION_SUMMARY = REPO_ROOT / "artifacts/raw_results/plasticity3d_validation/comparison_summary.json"
+P3D_DERIVATIVE_ABLATION_SUMMARY = (
+    REPO_ROOT / "artifacts/raw_results/plasticity3d_derivative_ablation/comparison_summary.json"
+)
+JAX_FEM_BASELINE_SUMMARY = REPO_ROOT / "artifacts/raw_results/jax_fem_hyperelastic_baseline/comparison_summary.json"
 
 PLAPLACE_PARITY = REPO_ROOT / "experiments/analysis/docs_assets/data/plaplace/parity_showcase.csv"
 GL_PARITY = REPO_ROOT / "experiments/analysis/docs_assets/data/ginzburg_landau/parity_showcase.csv"
@@ -176,6 +181,9 @@ def main() -> None:
     source32 = read_json(SOURCE_CONT_NP32)
     source8_progress = read_json(SOURCE_CONT_NP8_PROGRESS)
     source32_progress = read_json(SOURCE_CONT_NP32_PROGRESS)
+    p3d_validation = read_json(P3D_VALIDATION_SUMMARY)
+    p3d_ablation = read_json(P3D_DERIVATIVE_ABLATION_SUMMARY)
+    jax_fem_baseline = read_json(JAX_FEM_BASELINE_SUMMARY)
 
     local_scaling_rows = find_rows(local_rows, LOCAL_IMPL)
     mixed_local_rows = find_rows(mixed_rows, LOCAL_IMPL)
@@ -526,6 +534,79 @@ def main() -> None:
         ],
     )
 
+    layer1a_metrics = p3d_validation["layer1a"]["final_metrics"]
+    layer2_metrics = p3d_validation["layer2"]
+    write_tablex(
+        "plasticity3d_validation_summary.tex",
+        "@{}" + xcol(1.10) + xcol(1.45) + "r@{}",
+        ["Layer", "Metric", "Value"],
+        [
+            ["1A", "work relative difference", fmt_sci(float(layer1a_metrics["work_relative_difference"]))],
+            ["1A", "displacement relative L2", fmt_sci(float(layer1a_metrics["displacement_relative_l2"]))],
+            ["1A", "deviatoric-strain relative L2", fmt_sci(float(layer1a_metrics["deviatoric_strain_relative_l2"]))],
+            [
+                "2",
+                "highest-successful-$\\lambda$ relative difference",
+                fmt_sci(float(layer2_metrics["critical_lambda_schedule_proxy"]["relative_difference"])),
+            ],
+            ["2", "$u_{\\max}(\\lambda)$ relative L2", fmt_sci(float(layer2_metrics["umax_curve_relative_l2"]))],
+            [
+                "2",
+                "endpoint displacement relative L2",
+                fmt_sci(float(layer2_metrics["endpoint_displacement_relative_l2"])),
+            ],
+            [
+                "2",
+                "boundary-profile relative L2",
+                fmt_sci(float(layer2_metrics["boundary_profile_relative_l2"])),
+            ],
+            [
+                "2",
+                "acceptance",
+                "pass" if bool(layer2_metrics["acceptance"]["overall_pass"]) else "fail",
+            ],
+        ],
+    )
+
+    ablation_rows = [dict(row) for row in p3d_ablation["rows"]]
+    write_tablex(
+        "plasticity3d_derivative_ablation.tex",
+        "@{}" + xcol(0.88) + "r r r r r r r@{}",
+        ["Route", "Wall [s]", "Solve [s]", "Newton", "Linear", "Energy", "$\\omega$", "$u_{\\max}$"],
+        [
+            [
+                str(row["display_label"]),
+                fmt_float(float(row["median_wall_time_s"]), 3),
+                fmt_float(float(row["median_solve_time_s"]), 3),
+                fmt_float(float(row["median_nit"]), 2),
+                fmt_float(float(row["median_linear_iterations_total"]), 1),
+                fmt_float(float(row["median_energy"]), 6),
+                fmt_float(float(row["median_omega"]), 6),
+                fmt_float(float(row["median_u_max"]), 6),
+            ]
+            for row in ablation_rows
+        ],
+    )
+
+    fairness = dict(jax_fem_baseline["fairness_gate"])
+    final_metrics = dict(jax_fem_baseline["final_metrics"])
+    timing = dict(jax_fem_baseline["timing_medians_s"])
+    write_tablex(
+        "jax_fem_hyperelastic_baseline.tex",
+        "@{}" + xcol(1.25) + xcol(1.55) + "@{}",
+        ["Metric", "Value"],
+        [
+            ["matched problem contract", "yes" if bool(fairness["checks"]["same_mesh_path"] and fairness["checks"]["same_schedule"] and fairness["checks"]["same_constitutive_law"]) else "no"],
+            ["final energy relative difference", fmt_sci(float(final_metrics["energy_rel_diff"]))],
+            ["full-field displacement relative L2", fmt_sci(float(final_metrics["field_relative_l2"]))],
+            ["centerline relative L2", fmt_sci(float(final_metrics["centerline_relative_l2"]))],
+            ["$u_{\\max}$ curve relative L2", fmt_sci(float(final_metrics["umax_curve_relative_l2"]))],
+            ["repo median wall time [s]", fmt_float(float(timing["repo_serial_direct"]), 3)],
+            ["JAX-FEM median wall time [s]", fmt_float(float(timing["jax_fem_umfpack_serial"]), 3)],
+            ["fairness gate", "pass" if bool(fairness["passed"]) else "artifact-only"],
+        ],
+    )
+
     payload = {
         "plasticity3d_recommended_scaling_rows": [
             {
@@ -548,6 +629,14 @@ def main() -> None:
             }
             for lrow, srow in zip(mixed_local_rows, mixed_source_rows, strict=True)
         ],
+        "plasticity3d_validation": {
+            "layer1a_work_rel": float(layer1a_metrics["work_relative_difference"]),
+            "layer2_acceptance": bool(layer2_metrics["acceptance"]["overall_pass"]),
+        },
+        "jax_fem_hyperelastic_baseline": {
+            "fairness_gate_passed": bool(fairness["passed"]),
+            "energy_rel_diff": float(final_metrics["energy_rel_diff"]),
+        },
     }
     write_json(REPO_ROOT / "paper/build/tables_summary.json", payload)
 

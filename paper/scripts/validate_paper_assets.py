@@ -24,6 +24,11 @@ REQUIRED_FIGURES = [
     "plasticity3d_recommended_components.pdf",
     "plasticity3d_local_vs_source.pdf",
     "plasticity3d_sourcefixed_compare.pdf",
+    "plasticity3d_validation_layer1a_boundary.pdf",
+    "plasticity3d_validation_umax_curve.pdf",
+    "plasticity3d_derivative_ablation_bars.pdf",
+    "jax_fem_hyperelastic_baseline_energy_history.pdf",
+    "jax_fem_hyperelastic_baseline_centerline.pdf",
 ]
 
 REQUIRED_TABLES = [
@@ -35,6 +40,9 @@ REQUIRED_TABLES = [
     "plasticity3d_sourcefixed_alternative.tex",
     "topology_summary.tex",
     "reference_availability.tex",
+    "plasticity3d_validation_summary.tex",
+    "plasticity3d_derivative_ablation.tex",
+    "jax_fem_hyperelastic_baseline.tex",
 ]
 
 

@@ -4,7 +4,7 @@ The benchmark suite is intentionally heterogeneous. The central claim of the
 paper is not that one solver policy dominates every nonlinear PDE family, but
 that one maintained differentiable sparse-solver stack can cover scalar
 elliptic problems, phase-field-type energies, finite-strain mechanics,
-elastoplastic slope stability, and reduced topology optimisation without
+elastoplastic slope stability, and reduced topology optimization without
 switching conceptual frameworks.
 
 \begin{table}[H]
@@ -228,7 +228,7 @@ scientifically important than derivative parity alone.
 \begin{figure}[H]
   \centering
   \includegraphics[width=\PaperFigureMedium]{hyperelasticity_state.pdf}
-  \caption{Representative finite-strain hyperelastic state, coloured by the
+  \caption{Representative finite-strain hyperelastic state, colored by the
   energy density in \cref{eq:hyperelasticity-energy}.}
   \label{fig:hyperelasticity-state}
 \end{figure}
@@ -254,7 +254,10 @@ scientifically important than derivative parity alone.
 The benchmark-local takeaway is therefore a globalization result:
 \cref{fig:hyperelasticity-state,fig:hyperelasticity-energy-levels} show the
 terminal deformed state and terminal energies, while the scaling evidence is
-deferred to \Cref{sec:num-hyperelasticity}.
+deferred to \Cref{sec:num-hyperelasticity}. That later section also adds one
+matched serial companion baseline against JAX-FEM on the same mesh, material
+law, and displacement schedule; it is included as a fairness-first
+implementation comparison rather than as a broad framework ranking exercise.
 
 \subsection{Plasticity2D}
 \label{sec:bench-plasticity2d}
@@ -530,7 +533,7 @@ hand-derived return-map tangent; the branch interfaces remain nonsmooth and are
 treated as part of the algorithmic constitutive surrogate rather than as a
 globally smooth continuum potential.
 
-For the strain visualisations in this paper we use the deviatoric norm
+For the strain visualizations in this paper we use the deviatoric norm
 \begin{equation}
   \|\varepsilon_{\mathrm{dev}}\|
   =
@@ -548,6 +551,17 @@ For the strain visualisations in this paper we use the deviatoric norm
 \end{equation}
 which matches the engineering-shear convention of
 \cref{eq:plasticity3d-engineering-strain}.
+
+Because \cref{eq:plasticity3d-discrete,eq:plasticity3d-potential} define an
+algorithmic endpoint surrogate rather than a path-consistent incremental
+history functional, the results section reports this family with a separate
+validation ladder. Same-case source-faithfulness to the source-style surrogate
+implementation is treated separately from a fixed-lambda source-operator
+comparison. The latter checks source-family behavior under matched geometry,
+materials, boundary constraints, and reduction parameters, but it is not a
+path-consistent incremental-history validation. The paper therefore keeps the
+Plasticity3D claims at the level of a repository-specific surrogate
+approximation rather than a constitutively equivalent replacement.
 
 \begin{figure}[H]
   \centering

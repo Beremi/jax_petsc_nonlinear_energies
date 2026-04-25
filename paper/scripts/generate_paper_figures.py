@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from common import (
     FIGURES_ROOT,
     REPO_ROOT,
+    copy_asset,
     configure_paper_matplotlib,
     ensure_paper_dirs,
     load_layout,
@@ -85,6 +86,9 @@ PLASTICITY2D_L7_SUMMARY = REPO_ROOT / "artifacts/raw_results/slope_stability_l7_
 TOPOLOGY_STATE = REPO_ROOT / "experiments/analysis/docs_assets/data/topology/parallel_final_state.npz"
 TOPOLOGY_HISTORY = REPO_ROOT / "experiments/analysis/docs_assets/data/topology/objective_history.csv"
 TOPOLOGY_SCALING = REPO_ROOT / "experiments/analysis/docs_assets/data/topology/strong_scaling.csv"
+P3D_VALIDATION_ROOT = REPO_ROOT / "artifacts/raw_results/plasticity3d_validation"
+P3D_DERIVATIVE_ABLATION_ROOT = REPO_ROOT / "artifacts/raw_results/plasticity3d_derivative_ablation"
+JAX_FEM_BASELINE_ROOT = REPO_ROOT / "artifacts/raw_results/jax_fem_hyperelastic_baseline"
 
 LOCAL_IMPL = "local_constitutiveAD_local_pmg_armijo"
 SOURCE_IMPL = "source_local_pmg_armijo"
@@ -1463,6 +1467,15 @@ def generate_framework_overview(layout: dict[str, float]) -> str:
     return out.name
 
 
+def copy_external_figure(src: Path, dest_name: str) -> str:
+    dest = FIGURES_ROOT / dest_name
+    copy_asset(src, dest)
+    png_src = src.with_suffix(".png")
+    if png_src.exists():
+        copy_asset(png_src, dest.with_suffix(".png"))
+    return dest.name
+
+
 def generate_derivative_path_diagram(layout: dict[str, float]) -> str:
     plt = configure_paper_matplotlib()
     fig, ax = plt.subplots(figsize=text_figure_size(layout, height_ratio=0.46))
@@ -1945,6 +1958,36 @@ def main() -> None:
     generated.append(generate_topology_density(layout))
     generated.append(generate_topology_history(layout))
     generated.append(generate_topology_scaling(layout))
+    generated.append(
+        copy_external_figure(
+            P3D_VALIDATION_ROOT / "layer1a" / "assets" / "deformed_boundary_compare.pdf",
+            "plasticity3d_validation_layer1a_boundary.pdf",
+        )
+    )
+    generated.append(
+        copy_external_figure(
+            P3D_VALIDATION_ROOT / "layer2" / "assets" / "umax_curve.pdf",
+            "plasticity3d_validation_umax_curve.pdf",
+        )
+    )
+    generated.append(
+        copy_external_figure(
+            P3D_DERIVATIVE_ABLATION_ROOT / "assets" / "derivative_ablation_bars.pdf",
+            "plasticity3d_derivative_ablation_bars.pdf",
+        )
+    )
+    generated.append(
+        copy_external_figure(
+            JAX_FEM_BASELINE_ROOT / "assets" / "energy_history.pdf",
+            "jax_fem_hyperelastic_baseline_energy_history.pdf",
+        )
+    )
+    generated.append(
+        copy_external_figure(
+            JAX_FEM_BASELINE_ROOT / "assets" / "centerline_profile.pdf",
+            "jax_fem_hyperelastic_baseline_centerline.pdf",
+        )
+    )
 
     _, local_rows_by_impl = _load_impl_rows(LOCAL_P3D_SUMMARY)
     generated.extend(_plot_plasticity_scaling(layout, local_rows_by_impl))

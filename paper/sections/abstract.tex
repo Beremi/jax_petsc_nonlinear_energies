@@ -1,28 +1,40 @@
 \begin{abstract}
-We present \repo{} as a methods-and-software framework for nonlinear finite-element
-solves and optimization that spans \purejax{} references, \fenics{} references where they
-exist, and a maintained distributed \jaxpetsc{} implementation. The central
-goal is to make exact or near-exact derivative information practical for
-difficult nonlinear PDE and PDE-constrained optimization problems while still retaining scalable
-nonlinear solvers, sparse linear algebra, and multigrid preconditioning.
+We present \repo{} as a software-and-methods workflow for nonlinear finite-element
+solves and optimization that spans \purejax{} references, \fenics{} references
+where they exist, and a maintained distributed \jaxpetsc{} implementation.
 Across the maintained benchmark suite we cover nonlinear scalar problems
 ($p$-Laplace and Ginzburg--Landau), large-deformation hyperelasticity,
 two-dimensional and three-dimensional Mohr--Coulomb plasticity, and topology
-optimization. The methodology combines automatic differentiation in JAX,
-distributed PETSc Newton--Krylov solvers, exact element derivatives and
-constitutive
-second-order information, and colored sparse finite-difference recovery when
-exact Hessians are too expensive. The most demanding maintained study is the
-three-dimensional heterogeneous plasticity benchmark on \code{P4(L1\_2)} with
-\code{local\_constitutiveAD + local\_pmg}, which reaches the same promoted
-nonlinear target with the same reported nonlinear and linear iteration counts
-on 1/2/4/8/16/32 MPI ranks and attains $\num{18.05}\times$ end-to-end
-speedup at 32 ranks. The topology optimization study complements this with a
-distributed design-and-mechanics workflow in which a fine-grid
-\jaxpetsc{} implementation remains operational at $768\times 384$ resolution and
-32 ranks. We argue that the main contribution is not a single benchmark win,
-but an implementation pattern: exact gradients and usable second-order
-information can be carried through to distributed nonlinear solves across a
-heterogeneous family of FEM problems, including cases in which this
-combination is difficult to realize in mainstream high-level PDE toolchains.
+optimization. The methodological focus is a solver-centric combination of JAX
+for local differentiation with PETSc for sparse assembly, globalization,
+Krylov solves, and preconditioning, together with three second-order routes:
+element automatic differentiation, constitutive automatic differentiation, and
+colored sparse finite-difference recovery.
+
+The flagship evidence package is the three-dimensional heterogeneous
+Plasticity3D benchmark. A same-case source-faithfulness comparison against the
+source-style implementation is tight, with relative differences
+$3.877\times10^{-5}$ in work, $3.517\times10^{-3}$ in displacement, and
+$8.720\times10^{-3}$ in deviatoric-strain norm. A separate fixed-lambda
+source-operator comparison matches the highest-successful strength-reduction
+schedule proxy but does not satisfy the stricter field-agreement thresholds, so
+the manuscript interprets Plasticity3D as a repository-specific surrogate
+approximation rather than as a constitutively equivalent replacement for an
+incremental elastoplastic history solve. On the
+locked \code{P4(L1)}, $\lambda_{\mathrm{sr}}=1.5$, 8-rank derivative ablation,
+constitutive AD is the fastest route while reaching the same terminal state as
+element AD and colored SFD. A matched serial hyperelastic companion baseline
+against JAX-FEM on the same mesh, material law, and load schedule passes a 5\%
+fairness gate with energy and field differences below $10^{-3}$.
+
+The largest maintained distributed campaign remains the promoted
+\plasticitythree{} study on \code{P4(L1\_2)} with \code{local\_constitutiveAD +
+local\_pmg}, which attains $\num{18.05}\times$ end-to-end speedup on 32 MPI
+ranks relative to one rank at the same promoted nonlinear target. The topology
+optimization study complements this with a distributed design-and-mechanics
+workflow that remains operational at $768\times 384$ resolution and 32 ranks.
+Within that scoped evidence, the paper's contribution is a maintained
+implementation pattern: derivative-rich local models, sparse nonlinear solver
+policy, and distributed execution can be kept together in one reproducible
+workflow across a heterogeneous family of FEM problems.
 \end{abstract}

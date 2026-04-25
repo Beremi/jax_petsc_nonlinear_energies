@@ -98,7 +98,7 @@ validate the current Plasticity3D scalar surrogate in the strongest publishable 
    show that the maintained `JAX + PETSc` implementation reproduces the same-case source-style Plasticity3D workflow under matched conditions.
 2. `Layer 1B Published source-family triangulation`:
    connect the maintained implementation to the published 3D slope-stability source family, including the recent `CAS 2025` paper and the related MATLAB/PETSc `COMSOL`-backed benchmark lineage.
-3. `Layer 2 Incremental-reference validation`:
+3. `Layer 2 Incremental-reference validation` (future/strongest version):
    show that the surrogate remains scientifically credible when compared against a standard rate-independent incremental Mohr-Coulomb elastoplastic reference with history updates.
 
 Defaults for this validation package:
@@ -152,7 +152,7 @@ Treat these existing final differences as the baseline source-faithfulness evide
 - displacement-field relative `L2` difference:
   `3.517247e-03`
 - deviatoric-strain relative `L2` difference:
-  `8.857115e-03`
+  `8.720006e-03`
 
 The remaining tasks for `Layer 1A` are packaging, stabilization, and manuscript insertion, not proving fidelity from scratch. The paper-grade artifact set should include:
 
@@ -208,7 +208,12 @@ However, this layer must be labeled carefully:
 
 The manuscript value of `Layer 1B` is to show that the maintained code is not isolated: it already sits on top of a published, validated, open-source source family with both literature-backed and `COMSOL`-backed 3D evidence.
 
-Step 4: keep `Layer 2` as the true incremental-reference comparison.
+Step 4: keep the future strongest `Layer 2` as the true incremental-reference comparison.
+
+The current manuscript revision uses a fixed-lambda source-operator comparison
+as Layer 2 evidence. That comparison is useful for source-family behavior, but
+it is not a path-consistent incremental-history solve and should not be
+described as one.
 
 This is the scientifically important new work. Add one new small reference problem that uses a standard rate-independent incremental Mohr-Coulomb formulation with:
 
@@ -309,9 +314,9 @@ Step 9: integrate the validation result into the manuscript only after all requi
 
 Paper integration tasks:
 
-- add one benchmark paragraph in `benchmarks.tex` explaining that the Plasticity3D surrogate is validated through exact source-faithfulness, published source-family triangulation, and a separate incremental-reference check
+- add one benchmark paragraph in `benchmarks.tex` explaining that the Plasticity3D surrogate is validated through exact source-faithfulness, published source-family triangulation, and a separate fixed-lambda source-operator check
 - add one short validation paragraph plus one figure or table in `results.tex`
-- add one limitations sentence in `discussion.tex` explaining that source-faithfulness, source-family triangulation, and incremental-reference agreement are distinct claims
+- add one limitations sentence in `discussion.tex` explaining that source-faithfulness, source-family triangulation, source-operator agreement, and future incremental-reference agreement are distinct claims
 - add the supporting sources and exact claim locators to `paper/literature/claim_audit.md`
 
 Step 10: define `2.3` as incomplete until the full package exists.
