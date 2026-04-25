@@ -61,6 +61,23 @@ story into a PETSc-centered sparse
 assembly and nonlinear-solve setting with explicit comparison between element AD,
 constitutive AD, and colored SFD.
 
+\paragraph{Mohr--Coulomb slope stability and source-lineage context.}
+The plasticity benchmarks use Mohr--Coulomb-type slope-stability problems as
+reviewer-visible stress tests, so their citations have to distinguish continuum
+plasticity, strength-reduction practice, and repository-specific surrogates.
+Davis' plasticity treatment and the finite-element strength-reduction studies of
+\citet{tschuchnigg2015nonassociated} provide the Davis-style reduction context
+used in the paper. For constitutive integration, the incremental reference frame
+is return mapping with consistent tangents \citep{simo1985consistent,simo1998compinel},
+with Mohr--Coulomb-specific nonsmooth return operators treated by
+\citet{sysala2017returnmapping}. The recent Sysala slope-stability line also
+documents variational and optimization viewpoints for shear strength reduction
+\citep{sysala2021optimization,sysala2025convexoptimization} and a 3D
+continuation/iterative-solver source family \citep{sysala2025advancedcontinuation}.
+The present manuscript uses that literature to position the benchmark family,
+while the numerical claims remain limited to the implemented surrogate and the
+repository artifacts reported below.
+
 \paragraph{Topology optimization workflows.}
 The classical SIMP and educational topology-optimization references remain
 important because they supply the baseline compliance, filtering, and
@@ -90,7 +107,7 @@ and preconditioner design are all part of the scientific comparison.
 Against that background, the niche of \repo{} can be stated precisely. It sits
 between high-level differentiable modeling and scalable sparse nonlinear solver
 engineering. The contribution is not that it replaces the ecosystems above, but
-that it documents one specific point in the current design space:
+that it documents one specific point in the contemporary design space:
 maintained distributed nonlinear FEM workflows that combine JAX-based local
 differentiation, multiple second-order routes, and PETSc-based sparse execution
 on benchmark families ranging from scalar nonlinear diffusion to topology

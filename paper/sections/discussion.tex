@@ -2,7 +2,7 @@
 
 The results support four main conclusions.
 
-\paragraph{Constitutive AD is the best derivative route on the flagship
+\paragraph{Constitutive AD is the preferred derivative route on the flagship
 Plasticity3D case.}
 \Cref{fig:plasticity3d-derivative-ablation,tab:plasticity3d-derivative-ablation}
 show a clean cost-quality picture on the locked
@@ -14,7 +14,7 @@ it preserves the scalar-energy implementation contract while reducing wall time
 substantially relative to full element AD and colored SFD.
 
 \paragraph{Validation has to be separated by claim level.}
-The new Plasticity3D validation ladder in
+The Plasticity3D validation ladder in
 \Cref{fig:plasticity3d-validation,tab:plasticity3d-validation} changes how the
 paper should phrase its mechanics claims. Same-case source-faithfulness to the
 source-style surrogate implementation is strong, and that is an important
@@ -23,8 +23,8 @@ comparison does not satisfy the stricter agreement thresholds on
 $u_{\max}(\lambda)$ and endpoint displacement fields. The right interpretation
 is therefore limited but still publishable: the maintained implementation
 faithfully reproduces the intended surrogate workflow, yet the present evidence
-does not justify describing that surrogate as constitutively equivalent to a
-path-consistent incremental elastoplastic history solve.
+does not justify describing that surrogate as a path-consistent incremental
+elastoplastic history solve.
 
 \paragraph{Matched external baselines are useful when the contract is narrow.}
 The hyperelastic companion comparison against JAX-FEM in

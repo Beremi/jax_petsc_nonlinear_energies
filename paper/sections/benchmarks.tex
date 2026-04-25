@@ -264,7 +264,8 @@ implementation comparison rather than as a broad framework ranking exercise.
 
 The literature model is a quasi-static plane-strain Mohr--Coulomb slope
 stability problem posed as equilibrium together with a constitutive update and
-history variables \citep{davis1968plasticity,simo1985consistent,simo1998compinel,tschuchnigg2015nonassociated}.
+history variables
+\citep{davis1968plasticity,simo1985consistent,simo1998compinel,tschuchnigg2015nonassociated,sysala2017returnmapping,sysala2021optimization}.
 The unknown is the displacement field
 $u = (u_x,u_y):\Omega \to \mathbb{R}^2$ on the maintained homogeneous slope
 geometry. At increment $n+1$, the continuum equilibrium equations are
@@ -327,7 +328,7 @@ angle, respectively, the benchmark uses
   \label{eq:plasticity2d-davis}
 \end{align}
 with $\psi_{\lambda}$ defined analogously when the non-associated flow rule is
-activated \citep{davis1968plasticity,tschuchnigg2015nonassociated}. The
+activated \citep{davis1968plasticity,tschuchnigg2015nonassociated,sysala2021optimization}. The
 showcase endpoint runs in this paper use $\lambda_{\mathrm{sr}} = 1$ and
 $\psi = 0^\circ$, so the reported states should be read as repository endpoint
 surrogates rather than path-consistent history updates.
@@ -368,7 +369,8 @@ paper. Solver-engineering evidence for Plasticity2D is reported later in
 
 The literature model is again quasi-static Mohr--Coulomb equilibrium with
 constitutive/history updates, now on a three-dimensional heterogeneous slope
-geometry \citep{davis1968plasticity,simo1985consistent,simo1998compinel,tschuchnigg2015nonassociated}.
+geometry
+\citep{davis1968plasticity,simo1985consistent,simo1998compinel,tschuchnigg2015nonassociated,sysala2017returnmapping,sysala2025advancedcontinuation}.
 The unknown is a displacement field
 $u = (u_x,u_y,u_z): \Omega \to \mathbb{R}^3$, gravity acts in the source
 $y$-direction. At increment $n+1$, the continuum equilibrium equations are
@@ -461,7 +463,8 @@ with
   \label{eq:plasticity3d-davis-bar}
 \end{equation}
 which are the scalar constitutive parameters actually stored in the maintained
-3D assembly path \citep{davis1968plasticity,tschuchnigg2015nonassociated}.
+3D assembly path
+\citep{davis1968plasticity,tschuchnigg2015nonassociated,sysala2021optimization}.
 Here $\phi$ denotes friction angle and $\psi$ denotes dilation angle; the paper
 uses those symbols only in that geomechanics sense.
 
@@ -561,7 +564,11 @@ comparison. The latter checks source-family behavior under matched geometry,
 materials, boundary constraints, and reduction parameters, but it is not a
 path-consistent incremental-history validation. The paper therefore keeps the
 Plasticity3D claims at the level of a repository-specific surrogate
-approximation rather than a constitutively equivalent replacement.
+approximation rather than a path-consistent replacement. The related
+convex-optimization and continuation literature
+\citep{sysala2025convexoptimization,sysala2025advancedcontinuation} is used as
+source-family context, not as evidence that this repository surrogate is a full
+incremental elastoplastic solver.
 
 \begin{figure}[H]
   \centering

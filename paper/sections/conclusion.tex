@@ -5,13 +5,13 @@ differentiable-PDE abstraction, but a maintained implementation pattern in
 which local JAX differentiation, sparse PETSc nonlinear solves, and multiple
 second-order routes are kept together across a heterogeneous benchmark suite.
 
-The strongest new evidence is now more precise than the paper's original broad
-claim. On Plasticity3D, same-case source-faithfulness to the source-style
-surrogate implementation is strong, while the fixed-lambda source-operator
-comparison does not support constitutive-equivalence language. The correct
-reading is therefore that the repository provides a supported maintained
-surrogate workflow for this benchmark family, with constitutive AD emerging as
-the best cost-quality route on the locked flagship case. On Hyperelasticity,
+The Plasticity3D evidence is intentionally narrower than a broad mechanics
+claim. Same-case source-faithfulness to the source-style surrogate
+implementation is strong, while the fixed-lambda source-operator comparison
+does not support constitutive-equivalence language. The correct reading is
+therefore that the repository provides a supported maintained surrogate
+workflow for this benchmark family, with constitutive AD emerging as the
+preferred cost-quality route on the locked flagship case. On Hyperelasticity,
 the matched companion baseline against JAX-FEM shows that the maintained code
 can agree very closely with a recent external implementation when the problem
 contract is made genuinely symmetric. The promoted historical Plasticity3D
@@ -21,7 +21,7 @@ codebase remains operational beyond small matched comparisons.
 Future work should follow the boundaries made visible by these results:
 \begin{itemize}
   \item extend the validation surface for path-dependent mechanics beyond the
-        current surrogate-versus-source-operator comparison, including a true
+        present surrogate-versus-source-operator comparison, including a true
         incremental-history reference;
   \item add more fairness-first external baselines on tightly matched problem
         contracts;
@@ -29,7 +29,7 @@ Future work should follow the boundaries made visible by these results:
         mechanics workflows.
 \end{itemize}
 
-The next scientific step is not to overclaim the current implementation, but
+The next scientific step is not to overclaim this implementation, but
 to turn this maintained workflow into a stronger reusable template for
 additional nonlinear multiphysics and design problems with equally explicit
 validation and fairness criteria.

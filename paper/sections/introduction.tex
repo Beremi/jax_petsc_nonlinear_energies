@@ -20,7 +20,7 @@ landscape above. The maintained production path in \repo{} is a solver-centric
 \jaxpetsc{} stack for distributed nonlinear finite-element solves and optimization.
 Local energies and constitutive laws are written in JAX, while sparse assembly,
 globalization, Krylov solves, and preconditioning are handled by PETSc. The goal
-is not to claim one universally best framework, but to document one specific
+is not to claim one universally preferred framework, but to document one specific
 combination that is practically useful for our benchmark families: high-level
 local differentiation coupled to distributed sparse Newton--Krylov execution on
 hard nonlinear mechanics and design problems.
@@ -46,7 +46,11 @@ single benchmark-specific solver. At the same time, \plasticitythree{} and
 topology optimization receive the most detailed comparison because they are the
 closest stress tests for the maintained \jaxpetsc{} path; \plasticitythree{} is
 also the family in which source-faithfulness, surrogate interpretation, and
-historical scaling have to be separated most carefully.
+historical scaling have to be separated most carefully. The geomechanics context
+for that family follows the finite-element strength-reduction and 3D
+slope-stability literature \citep{tschuchnigg2015nonassociated,sysala2021optimization,sysala2025advancedcontinuation},
+but the repository object studied here is explicitly the implemented endpoint
+surrogate, not a claim of path-consistent incremental-history equivalence.
 
 \subsection{State of the Art and Positioning}
 \label{sec:intro-sota}

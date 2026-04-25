@@ -14,7 +14,7 @@ in a compact differentiable form without sparse distributed infrastructure.
 The \fenics{} implementations remain valuable on families where they exist,
 especially $p$-Laplace, Ginzburg--Landau, and hyperelasticity. They provide a
 trusted high-level FEM reference and help distinguish modeling issues from
-solver-stack issues. In the current repository they are used mainly as
+solver-stack issues. In this repository they are used mainly as
 comparison baselines rather than as the mainline production path.
 
 \paragraph{Maintained \jaxpetsc{} path.}
@@ -33,7 +33,7 @@ choices depend on the benchmark family, but the common logic is:
   \item \textbf{constitutive AD}: exact local constitutive tangents assembled
         from quadrature-point energy densities;
   \item \textbf{local SFD / colored SFD}: sparse approximate Hessian recovery
-        when exact second-order information is not the best cost tradeoff.
+        when exact second-order information is not the appropriate cost tradeoff.
 \end{itemize}
 
 This split is scientifically important. It lets us compare exact second-order
@@ -81,7 +81,7 @@ because the linear systems are qualitatively different:
   \item \textbf{Hyperelasticity:} trust-region outer iterations with
         \code{gamg}-preconditioned Krylov solves.
   \item \textbf{Plasticity (2D):} deep-tail multigrid hierarchies whose
-        bottlenecks are now dominated by the top smoother and repeated Krylov
+        bottlenecks are dominated by the top smoother and repeated Krylov
         work.
   \item \textbf{Plasticity3D:} local PMG on same-mesh
         \code{P4 -> P2 -> P1}, coarse \code{cg + hypre}, and an elastic initial

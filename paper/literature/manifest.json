@@ -269,8 +269,7 @@
       "fulltext_url": "https://asep.lib.cas.cz/arl-cav/cs/contapp/?send=1&op=contapp&repo=crepo1&key=49263244102",
       "isbns": [],
       "local_filename": "sysala2025advancedcontinuation.pdf",
-      "notes": "Supplemental uncited validation-planning literature entry.",
-      "supplemental": true
+      "notes": ""
     },
     "sysala2025convexoptimization": {
       "canonical_source_label": "DOI landing page",
@@ -280,8 +279,27 @@
       "fulltext_url": "https://arxiv.org/pdf/2312.12170.pdf",
       "isbns": [],
       "local_filename": "sysala2025convexoptimization.pdf",
-      "notes": "Supplemental uncited validation-planning literature entry.",
-      "supplemental": true
+      "notes": ""
+    },
+    "sysala2021optimization": {
+      "canonical_source_label": "TU Graz record",
+      "canonical_source_url": "https://tugraz.elsevierpure.com/en/publications/optimization-and-variational-principles-for-the-shear-strength-re-2",
+      "doi": "10.1002/nag.3270",
+      "fulltext_label": "arXiv PDF",
+      "fulltext_url": "https://arxiv.org/pdf/2101.01005.pdf",
+      "isbns": [],
+      "local_filename": "sysala2021optimization.pdf",
+      "notes": ""
+    },
+    "sysala2017returnmapping": {
+      "canonical_source_label": "CAS ASEP record",
+      "canonical_source_url": "https://asep.lib.cas.cz/arl-cav/en/detail/?idx=cav_un_epca-1%2A0482472&zf=SHORT",
+      "doi": "10.1002/zamm.201600215",
+      "fulltext_label": null,
+      "fulltext_url": null,
+      "isbns": [],
+      "local_filename": null,
+      "notes": "CAS ASEP lists an author's postprint with restricted access; no public full text is cached."
     },
     "bode2025autopdex": {
       "canonical_source_label": "JOSS article",

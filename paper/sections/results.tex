@@ -50,7 +50,7 @@ contract.
 
 The hyperelasticity problem definition, boundary data, and terminal energies
 are given in \Cref{sec:bench-he,eq:hyperelasticity-discrete}. Computationally,
-this family now serves two roles. First, it remains the maintained benchmark in
+this family serves two roles. First, it remains the maintained benchmark in
 which globalization matters more than derivative-route choice: the distributed
 implementation completes the full load path and preserves the terminal energy
 trend from \Cref{sec:bench-he}. Second, it provides the cleanest matched
@@ -92,8 +92,7 @@ as a narrow implementation comparison because the contract is matched tightly;
 the timing rows should not be read as a broad framework ranking. On this small
 serial CPU companion case, the maintained direct solve is faster
 (\SI{0.176}{s} median wall time versus \SI{2.524}{s} for JAX-FEM), but the
-main point is parity of the discrete solution rather than serial timing
-dominance.
+main point is parity of the discrete solution rather than a broad timing claim.
 
 \begin{figure}[H]
   \centering
@@ -171,12 +170,12 @@ the boundary-profile relative $L^2$ difference is $5.065\times10^{-1}$.
 \end{table}
 
 The paper therefore treats Plasticity3D as a source-faithful maintained
-surrogate workflow, not as a constitutively equivalent replacement for a
-path-consistent incremental elastoplastic history solve.
+surrogate workflow, not as a path-consistent incremental elastoplastic history
+solve.
 
 \paragraph{Derivative-route ablation.}
 With that interpretation fixed, the next question is which second-order route
-is the best fit for the promoted maintained workflow. On the locked
+has the most useful cost-quality profile for the promoted maintained workflow. On the locked
 \code{P4(L1)} case at $\lambda_{\mathrm{sr}}=1.5$ and 8 MPI ranks, all three
 routes converge to essentially the same terminal state, with identical Newton
 and total Krylov counts. The differences are therefore cost differences, not
@@ -277,7 +276,7 @@ lower energy at matched DOFs only by paying a clear wall-time premium.
 \end{table}
 
 \Cref{fig:plasticity3d-scaling,tab:plasticity3d-scaling} give the paper's
-strongest maintained distributed mechanics result. This scaling evidence uses
+largest maintained distributed mechanics timing result. This scaling evidence uses
 the promoted \code{P4(L1\_2)} mesh family but a different load factor,
 $\lambda_{\mathrm{sr}} = 1.0$, so it complements rather than extends the
 glued-bottom $\lambda_{\mathrm{sr}} = 1.55$ benchmark figures above. Within
