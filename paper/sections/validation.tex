@@ -17,8 +17,8 @@ JAX-FEM on the same mesh and prescribed displacement schedule, then
 post-compares both terminal states with the repository energy from
 \cref{eq:hyperelasticity-energy}. This supports a solution-level
 implementation comparison for this hyperelastic problem only. It should not be
-read as a plasticity validation, a broad framework ranking, or a claim that the
-two codes use identical constitutive implementations: the JAX-FEM worker uses a
+read as a plasticity validation, a broad framework ranking, or constitutive-law
+identity between the two implementations: the JAX-FEM worker uses a
 logarithmic-$J$ Piola form, whereas the repository energy uses the
 $D_1(J-1)^2$ volumetric penalty in \cref{eq:hyperelasticity-energy}.
 
@@ -81,14 +81,16 @@ incremental-history equivalence. After matching the source boundary contract
 to the maintained glued-bottom free-DOF mask, the validation schedule is capped
 at the main-figure load level $\lambda_{\mathrm{sr}}=1.55$. It keeps the
 highest-successful-$\lambda$ schedule proxy aligned on the tested grid and
-passes the configured field-agreement thresholds: the
-$u_{\max}(\lambda)$ relative $L^2$ difference is \num{6.396e-6}, the endpoint
-displacement relative $L^2$ difference is \num{8.299e-4}, the endpoint
-deviatoric-strain relative $L^2$ difference is \num{4.307e-3}, and the
-boundary-profile relative $L^2$ difference is \num{5.229e-4}. This comparison
-uses a matched mesh, material table, Davis-B strength reduction, load schedule,
-and glued-bottom free-DOF mask, but it remains a fixed-load endpoint check
-rather than a path-consistent plastic-history reference.
+passes the configured gates for the $u_{\max}(\lambda)$ curve and endpoint
+displacement: the $u_{\max}(\lambda)$ relative $L^2$ difference is
+\num{6.396e-6}, and the endpoint displacement relative $L^2$ difference is
+\num{8.299e-4}. The endpoint deviatoric-strain relative $L^2$ difference
+(\num{4.307e-3}) and boundary-profile relative $L^2$ difference
+(\num{5.229e-4}) are reported as diagnostics rather than acceptance gates.
+This comparison uses a matched mesh, material table, Davis-B strength
+reduction, load schedule, and glued-bottom free-DOF mask, but it remains a
+fixed-load endpoint check rather than a path-consistent plastic-history
+reference.
 
 \begin{figure}[H]
   \centering

@@ -213,6 +213,7 @@ def main() -> None:
     parser.add_argument("--manifest", type=Path, default=LITERATURE_ROOT / "manifest.json")
     parser.add_argument("--out-md", type=Path, default=LITERATURE_ROOT / "sources.md")
     parser.add_argument("--skip-download", action="store_true")
+    parser.add_argument("--refresh-downloads", action="store_true")
     args = parser.parse_args()
 
     ensure_paper_dirs()
@@ -277,7 +278,7 @@ def main() -> None:
             if not local_filename:
                 raise SystemExit(f"Manifest entry {key!r} is missing local_filename for downloadable full text")
             destination = FULLTEXT_ROOT / local_filename
-            if not args.skip_download:
+            if not args.skip_download and (args.refresh_downloads or not destination.exists()):
                 download_fulltext(fulltext_url, destination)
             if not destination.exists():
                 raise SystemExit(f"Expected downloaded full text for {key!r} at {destination}")

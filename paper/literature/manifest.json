@@ -99,6 +99,26 @@
       "local_filename": "xue2023jaxfem.pdf",
       "notes": ""
     },
+    "xue2026implicit": {
+      "canonical_source_label": "DOI landing page",
+      "canonical_source_url": "https://doi.org/10.1016/j.cpc.2026.110102",
+      "doi": "10.1016/j.cpc.2026.110102",
+      "fulltext_label": "arXiv PDF",
+      "fulltext_url": "https://arxiv.org/pdf/2505.12646.pdf",
+      "isbns": [],
+      "local_filename": "xue2026implicit.pdf",
+      "notes": "Crossref metadata verified Computer Physics Communications 323:110102, 2026; arXiv metadata verified arXiv:2505.12646 submitted 2025-05-19."
+    },
+    "cattaneo2026jetsci": {
+      "canonical_source_label": "arXiv abstract",
+      "canonical_source_url": "https://arxiv.org/abs/2604.22087",
+      "doi": "10.48550/arXiv.2604.22087",
+      "fulltext_label": "arXiv PDF",
+      "fulltext_url": "https://arxiv.org/pdf/2604.22087.pdf",
+      "isbns": [],
+      "local_filename": "cattaneo2026jetsci.pdf",
+      "notes": "arXiv metadata/PDF verified arXiv:2604.22087v1 [cs.MS], submitted 2026-04-23; submitted preprint, not peer-reviewed journal evidence."
+    },
     "balay1997petsc": {
       "canonical_source_label": "Springer chapter",
       "canonical_source_url": "https://link.springer.com/chapter/10.1007/978-1-4612-1986-6_8",
@@ -120,7 +140,7 @@
       "fulltext_url": "https://petsc.org/release/",
       "isbns": [],
       "local_filename": "petsc2024web.html",
-      "notes": "Year is fixed to 2024 from the archived PETSc 3.21 citation block."
+      "notes": "BibTeX key retained for compatibility; citation metadata updated from the official PETSc 3.25 documentation citation block, which lists year 2026."
     },
     "nocedal2006numerical": {
       "canonical_source_label": "Springer book page",
@@ -354,12 +374,12 @@
     "yashchuk2023bringing": {
       "canonical_source_label": "arXiv abstract",
       "canonical_source_url": "https://arxiv.org/abs/2309.07137",
-      "doi": null,
+      "doi": "10.48550/arXiv.2309.07137",
       "fulltext_label": "arXiv PDF",
       "fulltext_url": "https://arxiv.org/pdf/2309.07137.pdf",
       "isbns": [],
       "local_filename": "yashchuk2023bringing.pdf",
-      "notes": ""
+      "notes": "arXiv metadata verified: submitted 2023-08-31, primary class cs.MS, also cs.LG and math.NA; comments state workshop publication at ICLR 2020 DeepDiffEq."
     }
   }
 }

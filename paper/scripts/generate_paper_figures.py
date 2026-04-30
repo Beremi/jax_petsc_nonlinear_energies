@@ -100,6 +100,36 @@ P3D_CAMERA_POSITION = np.asarray([-200.0, 100.0, -50.0], dtype=np.float64)
 P3D_BENCHMARK_DEGREE_LINE = "P4"
 P3D_BENCHMARK_MESH_ALIAS = "L1_2"
 P3D_BENCHMARK_SURFACE_SUBDIVISIONS = 2
+MESH_ALIAS_MATH = {
+    "L1": "L_1",
+    "L1_2": "L_2",
+    "L1_2_3": "L_3",
+    "L1_2_3_4": "L_4",
+}
+
+
+def _mesh_math(alias: object) -> str:
+    key = str(alias)
+    if key in MESH_ALIAS_MATH:
+        return MESH_ALIAS_MATH[key]
+    if key.startswith("L") and key[1:].isdigit():
+        return f"L_{key[1:]}"
+    return key.replace("_", r"\_")
+
+
+def _degree_math(degree: object) -> str:
+    key = str(degree)
+    if key.startswith("P") and key[1:].isdigit():
+        return f"P_{key[1:]}"
+    return key.replace("_", r"\_")
+
+
+def _element_math_label(degree: object, mesh_alias: object) -> str:
+    return rf"${_degree_math(degree)}({_mesh_math(mesh_alias)})$"
+
+
+def _degree_math_label(degree: object) -> str:
+    return rf"${_degree_math(degree)}$"
 
 
 def _read_json(path: Path) -> dict:
@@ -790,7 +820,11 @@ def generate_plasticity2d_figures(layout: dict[str, float]) -> list[str]:
         ],
         dtype=np.float64,
     )
-    labels = [r"$P4(L5)$", r"$P4(L6)$", r"$P4(L7)$"]
+    labels = [
+        _element_math_label("P4", "L5"),
+        _element_math_label("P4", "L6"),
+        _element_math_label("P4", "L7"),
+    ]
     energy_offset = -212.538
     energy_scaled = (energy - energy_offset) / 1.0e-4
     fig, ax = plt.subplots(figsize=paper_figure_size(layout, preset="narrow", height_ratio=0.50))
@@ -802,9 +836,9 @@ def generate_plasticity2d_figures(layout: dict[str, float]) -> list[str]:
             "fontsize": 7.5,
             "clip_on": False,
         }
-        if label.endswith("(L5)$"):
+        if label.endswith("(L_5)$"):
             ax.annotate(label, xytext=(6, 0), ha="left", va="center", **annotate_kwargs)
-        elif label.endswith("(L7)$"):
+        elif label.endswith("(L_7)$"):
             ax.annotate(label, xytext=(0, 14), ha="center", va="bottom", **annotate_kwargs)
         else:
             ax.annotate(label, xytext=(4, 6), ha="left", va="bottom", **annotate_kwargs)
@@ -1043,7 +1077,7 @@ def _generate_plasticity3d_convergence_figure(layout: dict[str, float]) -> str:
             alpha=0.95,
         )
         legend_handles.append(handle)
-        legend_labels.append(f"{degree_line}({mesh_alias})")
+        legend_labels.append(_element_math_label(degree_line, mesh_alias))
 
     axes[0].set_ylabel(r"Energy [$10^{6}$]")
     axes[0].grid(True, alpha=0.25)
@@ -1205,7 +1239,7 @@ def generate_plasticity3d_highest_y_slice_comparison(layout: dict[str, float]) -
             aspect="equal",
         )
         mappable.set_rasterized(True)
-        ax.set_title(str(item["degree_line"]), pad=6)
+        ax.set_title(_degree_math_label(item["degree_line"]), pad=6)
         ax.set_xlabel("x")
         if idx == 0:
             ax.set_ylabel("z")
@@ -1943,9 +1977,9 @@ def _plot_plasticity3d_degree_energy_study(layout: dict[str, float]) -> list[str
         key=lambda row: (int(str(row.get("degree_line", "P0")).replace("P", "")), int(row.get("free_dofs", 0))),
     )
     styles = {
-        "P1": {"label": "P1", "color": "#1f77b4", "marker": "o"},
-        "P2": {"label": "P2", "color": "#ff7f0e", "marker": "s"},
-        "P4": {"label": "P4", "color": "#2ca02c", "marker": "^"},
+        "P1": {"label": _degree_math_label("P1"), "color": "#1f77b4", "marker": "o"},
+        "P2": {"label": _degree_math_label("P2"), "color": "#ff7f0e", "marker": "s"},
+        "P4": {"label": _degree_math_label("P4"), "color": "#2ca02c", "marker": "^"},
     }
 
     def _plot_panel(

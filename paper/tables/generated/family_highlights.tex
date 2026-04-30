@@ -6,7 +6,7 @@ $p$-Laplace & JAX+PETSc element AD, $L_{9}$, 32 ranks: \num{1.14} s & Exact elem
 Ginzburg--Landau & JAX+PETSc element AD, $L_{9}$, 32 ranks: \num{2.1} s & Element AD remains effectively tied with FEniCS custom Newton on the fine-grid maintained benchmark. \\
 Hyperelasticity & JAX+PETSc element AD, $L_{4}$, 32 ranks: \num{529} s & Hybrid trust-region/line-search globalization sustains large-deformation solves in distributed mode. \\
 Plasticity (2D) & JAX+PETSc deep-tail PMG, $P_{4}(L_{7})$, 16 ranks: \num{253} s & The dominant bottlenecks shift from the coarse end to the top smoother and repeated Krylov work. \\
-Plasticity3D & constitutive-AD PMG solver, $P_{4}(L_{2})$, 32 ranks: \num{300} s & Constitutive AD and local PMG give the cleanest converged strong-scaling story across 1/2/4/8/16/32 ranks. \\
+Plasticity3D & constitutive-AD PMG solver, $P_{4}(L_{2})$, $\lambda_{\mathrm{sr}}=\num{1.0}$, 32 ranks: \num{300} s & Historical timing context for the promoted load factor; the main glued-bottom discretization study uses $\lambda_{\mathrm{sr}}=\num{1.55}$. \\
 Topology & parallel JAX+PETSc, $768\times384$, 32 ranks: \num{25.1} s & Distributed design updates and PETSc mechanics deliver a stable fine-grid workflow while pure JAX remains the serial formulation reference. \\
 \bottomrule
 \end{tabularx}

@@ -6,11 +6,15 @@ variational modeling together with compiled kernels and parallel assembly
 such as \code{dolfin-adjoint}, \code{pyadjoint}, and \code{cashocs} automate
 adjoint-centered optimization workflows and PDE-level sensitivity automation
 \citep{farrell2013dolfinadjoint,mitusch2019pyadjoint,blauth2023cashocsv2}.
-JAX-native or JAX-connected workflows, including JAX-FEM, AutoPDEx,
-JAX-CPFEM, the Firedrake--JAX bridge, and recent \code{FEniCSx} external-operator
-work, push automatic differentiation deeper into constitutive modeling and
-differentiable simulation
-\citep{xue2023jaxfem,bode2025autopdex,hu2025jaxcpfem,yashchuk2023bringing,latyshev2025externaloperators}.
+JAX-native or JAX-connected workflows, including JAX-FEM, second-order
+implicit-differentiation benchmarks for finite-element differentiable physics,
+AutoPDEx, JAX-CPFEM, the Firedrake--JAX bridge, and recent \code{FEniCSx}
+external-operator work, push automatic differentiation deeper into constitutive
+modeling and differentiable simulation
+\citep{xue2023jaxfem,xue2026implicit,bode2025autopdex,hu2025jaxcpfem,yashchuk2023bringing,latyshev2025externaloperators}.
+The recently submitted JetSCI preprint is especially close in software
+architecture because it also couples JAX-local finite-element kernels to PETSc
+for distributed sparse solves \citep{cattaneo2026jetsci}.
 Recent topology-optimization implementations such as \code{FEniTop} show that
 compact parallel design-mechanics workflows can also be built on modern
 \code{FEniCSx} infrastructure \citep{jia2024fenitop}.
@@ -23,7 +27,11 @@ globalization, Krylov solves, and preconditioning are handled by PETSc. The goal
 is not to claim one universally preferred framework, but to document one specific
 combination that is practically useful for our benchmark families: high-level
 local differentiation coupled to distributed sparse Newton--Krylov execution on
-hard nonlinear mechanics and design problems.
+hard nonlinear mechanics and design problems. Relative to closely related hybrid
+JAX--PETSc work, the emphasis here is on a maintained nonlinear
+energy-minimization benchmark suite and on comparing derivative routes within
+the same sparse solver workflow rather than on establishing a general-purpose
+differentiable-simulation framework.
 
 The central claim is therefore deliberately limited. We do not claim that every
 benchmark requires exact Hessians, nor that mainstream frameworks cannot provide
@@ -80,17 +88,18 @@ high-level FEM and adjoint ecosystems
 distributed nonlinear solve policy and multiple second-order routes inside the
 same sparse solver stack. Second, relative to JAX-native mechanics and
 differentiable-simulation frameworks
-\citep{xue2023jaxfem,bode2025autopdex,hu2025jaxcpfem}, the main distinction is
-that the maintained implementation here centers PETSc-owned sparse MPI data
-structures and preconditioned Newton solves, whereas the cited JAX-native
-frameworks emphasize JAX-level modeling, local differentiation, GPU execution,
-or implicit-differentiation workflows. Third, relative to recent bridge papers
-that combine JAX-style differentiation with established FEM environments
-\citep{yashchuk2023bringing,latyshev2025externaloperators}, the paper's emphasis
-is on extending that bridge-style differentiation story into benchmarked PETSc
-sparse assembly, Krylov solves, and nonlinear globalization for benchmark
-families that include topology optimization and 3D Mohr--Coulomb-type
-mechanics.
+\citep{xue2023jaxfem,xue2026implicit,bode2025autopdex,hu2025jaxcpfem}, the main
+distinction is that the maintained implementation here centers PETSc-owned
+sparse MPI data structures and preconditioned Newton solves, whereas the cited
+JAX-native frameworks emphasize JAX-level modeling, local differentiation, GPU
+execution, second-order implicit differentiation, or differentiable-physics
+workflows. Third, relative to recent bridge and hybrid papers that combine
+JAX-style differentiation with established FEM or solver environments
+\citep{yashchuk2023bringing,latyshev2025externaloperators,cattaneo2026jetsci},
+the paper's emphasis is on extending that bridge-style differentiation story
+into benchmarked PETSc sparse assembly, Krylov solves, and nonlinear
+globalization for benchmark families that include topology optimization and 3D
+Mohr--Coulomb-type mechanics.
 
 The resulting positioning statement is intentionally modest. \repo{} is not
 presented as a general differentiable-PDE platform, nor as a replacement for the

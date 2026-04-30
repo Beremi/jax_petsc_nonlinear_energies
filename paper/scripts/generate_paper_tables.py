@@ -345,6 +345,13 @@ def pass_fail(value: object) -> str:
     return "pass" if bool(value) else "fail"
 
 
+def _layer2_gate_status(layer2_metrics: dict[str, object], key: str) -> str:
+    acceptance = dict(layer2_metrics.get("acceptance", {}))
+    if key not in acceptance:
+        return "--"
+    return pass_fail(acceptance[key])
+
+
 def final_metric_header(rows: list[dict[str, object]]) -> str:
     names = {str(row.get("final_metric_name", "")).strip() for row in rows if row.get("final_metric_name")}
     if names == {"grad_norm"}:
@@ -457,8 +464,8 @@ def main() -> None:
             ],
             [
                 "Plasticity3D",
-                f"constitutive-AD PMG solver, {element_label('P4', 'L1_2')}, 32 ranks: {fmt_wall_time(float(p3d_highlight['wall_time_s']))} s",
-                "Constitutive AD and local PMG give the cleanest converged strong-scaling story across 1/2/4/8/16/32 ranks.",
+                f"constitutive-AD PMG solver, {element_label('P4', 'L1_2')}, $\\lambda_{{\\mathrm{{sr}}}}=\\num{{1.0}}$, 32 ranks: {fmt_wall_time(float(p3d_highlight['wall_time_s']))} s",
+                "Historical timing context for the promoted load factor; the main glued-bottom discretization study uses $\\lambda_{\\mathrm{sr}}=\\num{1.55}$.",
             ],
             [
                 "Topology",
@@ -558,12 +565,20 @@ def main() -> None:
                 "PDE control, shape, and topology",
             ],
             [
-                "\\shortstack[l]{JAX-FEM\\\\AutoPDEx\\\\\\citep{xue2023jaxfem,bode2025autopdex}}",
+                "\\shortstack[l]{JAX-FEM\\\\Xue 2026\\\\AutoPDEx\\\\\\citep{xue2023jaxfem,xue2026implicit,bode2025autopdex}}",
                 "JAX-native PDE / FE programs",
                 "Program-level forward and reverse AD",
-                "Higher-order JAX derivatives",
+                "Higher-order JAX and implicit Hessian-vector derivatives",
                 "JAX execution; PETSc optional in AutoPDEx",
-                "Nonlinear mechanics and inverse design",
+                "Nonlinear mechanics, inverse design, and FE differentiable physics",
+            ],
+            [
+                "\\shortstack[l]{JetSCI\\\\\\citep{cattaneo2026jetsci}}",
+                "JAX local discretizations plus PETSc sparse solves",
+                "JAX-differentiated discretization kernels",
+                "Differentiable simulation kernels with PETSc solves",
+                "JAX/GPU within node; PETSc MPI across nodes",
+                "Heterogeneous micromechanics",
             ],
             [
                 "\\shortstack[l]{Firedrake--JAX\\\\FEniCSx ext. ops\\\\\\citep{yashchuk2023bringing,latyshev2025externaloperators}}",
@@ -736,7 +751,7 @@ def main() -> None:
     )
 
     write_table_star(
-        "plasticity3d_sourcefixed_alternative.tex",
+        "plasticity3d_fixed_source_operator_pmg.tex",
         fill_spec("c l c c c c c"),
         [
             "Ranks",
@@ -812,6 +827,7 @@ def main() -> None:
 
     layer1a_metrics = p3d_validation["layer1a"]["final_metrics"]
     layer2_metrics = p3d_validation["layer2"]
+    endpoint_dev = layer2_metrics.get("endpoint_deviatoric_strain_relative_l2")
     write_table_star(
         "plasticity3d_validation_summary.tex",
         "@{}c@{\\hspace{1.0em}}" + pcol(r"0.36\textwidth") + r"@{\extracolsep{\fill}}c c@{}",
@@ -829,25 +845,31 @@ def main() -> None:
                 "2",
                 "highest-successful $\\lambda$",
                 fmt_sci(float(layer2_metrics["critical_lambda_schedule_proxy"]["relative_difference"])),
-                "--",
+                _layer2_gate_status(layer2_metrics, "critical_lambda_pass"),
             ],
             [
                 "2",
                 "$u_{\\max}(\\lambda)$ relative $L^2$",
                 fmt_sci(float(layer2_metrics["umax_curve_relative_l2"])),
-                "--",
+                _layer2_gate_status(layer2_metrics, "umax_curve_pass"),
             ],
             [
                 "2",
                 "endpoint displacement relative $L^2$",
                 fmt_sci(float(layer2_metrics["endpoint_displacement_relative_l2"])),
-                "--",
+                _layer2_gate_status(layer2_metrics, "endpoint_disp_pass"),
+            ],
+            [
+                "2",
+                "endpoint deviatoric-strain relative $L^2$",
+                fmt_sci(float(endpoint_dev)) if endpoint_dev is not None else "--",
+                "diagnostic",
             ],
             [
                 "2",
                 "boundary profile relative $L^2$",
                 fmt_sci(float(layer2_metrics["boundary_profile_relative_l2"])),
-                "--",
+                "diagnostic",
             ],
             [
                 "2",

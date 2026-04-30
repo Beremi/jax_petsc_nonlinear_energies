@@ -1,11 +1,12 @@
 \label{sec:related}
 
-The literature most relevant to this manuscript falls into six closely connected
+The literature most relevant to this manuscript falls into seven closely connected
 groups: high-level finite-element automation, PDE-level adjoint optimization,
-JAX-native differentiable FEM, JAX-to-FEM bridge mechanisms, topology
-optimization workflows, and sparse nonlinear solver infrastructure. The purpose
-of this section is not to assign a single ranking to those groups, but to state
-precisely which part of each literature thread the present paper uses as context.
+JAX-native differentiable FEM, JAX-to-FEM/PETSc bridge mechanisms,
+Mohr--Coulomb slope-stability source-lineage context, topology optimization
+workflows, and sparse nonlinear solver infrastructure. The purpose of this
+section is not to assign a single ranking to those groups, but to state precisely
+which part of each literature thread the present paper uses as context.
 
 \paragraph{High-level finite-element automation.}
 The original \fenics{} project established the high-level finite-element
@@ -38,13 +39,17 @@ derivatives, vectorization, and just-in-time compilation readily usable in
 scientific computing \citep{jax2018}. Within finite elements, JAX-FEM shows that
 inverse design, nonlinear constitutive modeling, and GPU-oriented differentiable
 workflows can be implemented inside a JAX-native 3D FE solver
-\citep{xue2023jaxfem}. AutoPDEx broadens that JAX-native PDE picture with
-nonlinear minimizers, implicit differentiation, and optional PETSc integration
-\citep{bode2025autopdex}. JAX-CPFEM is especially relevant to the mechanics side
-of the present paper because it couples differentiable FEM, nonlinear crystal
-plasticity, and GPU execution in a recent open-access workflow
-\citep{hu2025jaxcpfem}. Together, these papers define the closest modern
-literature context for the repository's JAX-based local differentiation layer.
+\citep{xue2023jaxfem}. Xue's later finite-element differentiable-physics paper
+is a direct second-order comparator because it derives implicit Hessian-vector
+products and evaluates Newton-CG-style use of exact Hessian information on
+finite-element inverse-problem benchmarks \citep{xue2026implicit}. AutoPDEx
+broadens that JAX-native PDE picture with nonlinear minimizers, implicit
+differentiation, and optional PETSc integration \citep{bode2025autopdex}.
+JAX-CPFEM is especially relevant to the mechanics side of the present paper
+because it couples differentiable FEM, nonlinear crystal plasticity, and GPU
+execution in a recent open-access workflow \citep{hu2025jaxcpfem}. Together,
+these papers define the closest modern literature context for the repository's
+JAX-based local differentiation layer and second-order derivative comparisons.
 
 \paragraph{Bridges between JAX-style AD and established FEM stacks.}
 The Firedrake--JAX bridge of \citet{yashchuk2023bringing} is important because
@@ -57,9 +62,15 @@ constitutive models inside \code{FEniCSx}, including a Mohr--Coulomb example.
 Those papers show that constitutive- or solve-level differentiation can be
 combined with established FEM environments without differentiating every low-level
 algebraic step. The present paper extends that bridge-style differentiation
-story into a PETSc-centered sparse
-assembly and nonlinear-solve setting with explicit comparison between element AD,
-constitutive AD, and colored SFD.
+story into a PETSc-centered sparse assembly and nonlinear-solve setting with
+explicit comparison between element AD, constitutive AD, and colored SFD. The
+JetSCI preprint is the closest recent hybrid in architecture: it uses JAX for
+local finite-element discretization and PETSc for robust distributed sparse
+solves in heterogeneous micromechanics \citep{cattaneo2026jetsci}. We therefore
+treat it as evidence from a submitted preprint that the JAX-local/PETSc-global
+split is an active design point, while keeping the present paper's claim
+narrower: a maintained nonlinear energy-minimization suite with derivative-route
+comparisons across the benchmark families below.
 
 \paragraph{Mohr--Coulomb slope stability and source-lineage context.}
 The plasticity benchmarks use Mohr--Coulomb-type slope-stability problems as

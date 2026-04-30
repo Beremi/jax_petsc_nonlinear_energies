@@ -18,12 +18,13 @@ tight, with relative differences
 \num{3.877e-5} in work, \num{3.517e-3} in displacement, and
 \num{8.720e-3} in deviatoric-strain norm. A separate fixed-lambda
 source-operator diagnostic uses the matched glued-bottom boundary contract and
-passes the configured field-agreement thresholds, with
-$u_{\max}(\lambda)$ relative $L^2$ difference \num{6.396e-6} and endpoint
-displacement relative $L^2$ difference \num{8.299e-4}. This validates the
-implemented endpoint surrogate within the tested fixed-load contract, but not
-as a path-consistent replacement for an incremental elastoplastic history
-solve. On the locked $P_4(L_1)$,
+passes the configured gated quantities, with $u_{\max}(\lambda)$ relative
+$L^2$ difference \num{6.396e-6} and endpoint displacement relative $L^2$
+difference \num{8.299e-4}; endpoint deviatoric-strain and boundary-profile
+agreement are reported as diagnostics. This validates the implemented endpoint
+surrogate within the tested fixed-load contract, but not as a path-consistent
+replacement for an incremental elastoplastic history solve. On the locked
+$P_4(L_1)$,
 $\lambda_{\mathrm{sr}}=1.5$, 8-rank derivative ablation, constitutive AD has
 the lowest median wall time among the three tested routes while reaching the
 same terminal state as element AD and colored SFD. A serial hyperelastic

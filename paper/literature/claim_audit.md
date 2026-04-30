@@ -15,10 +15,12 @@ those are presented in the paper as implementation choices of `fenics_nonlinear_
 | Introduction, Related Work | Automatic differentiation background in scientific computing and machine learning | `baydin2018autodiff` | Survey abstract and introductory sections |
 | Introduction, Related Work | JAX as a high-level tracing / program-transformation environment | `jax2018` | SysML paper abstract |
 | Introduction, Related Work | JAX-FEM as a differentiable GPU-accelerated 3D finite-element solver for inverse design and mechanics workflows | `xue2023jaxfem` | Abstract and introduction |
+| Introduction, Related Work | Second-order implicit differentiation for finite-element differentiable physics, including Hessian-vector products and benchmarked nonlinear inverse problems | `xue2026implicit` | Crossref DOI metadata, arXiv abstract, and arXiv submission metadata |
 | Introduction, Related Work | AutoPDEx as a JAX-based PDE solver with nonlinear minimization and implicit-differentiation support | `bode2025autopdex` | JOSS abstract |
 | Introduction, Related Work | JAX-CPFEM as a differentiable crystal-plasticity FEM platform with GPU emphasis | `hu2025jaxcpfem` | Abstract and introduction |
 | Introduction, Related Work | Firedrake--JAX bridge differentiates PDE solves via tangent-linear and adjoint equations instead of low-level solver tracing | `yashchuk2023bringing` | arXiv abstract |
 | Introduction, Related Work | FEniCSx external operators plus algorithmic AD for general constitutive models, including Mohr--Coulomb examples | `latyshev2025externaloperators` | Abstract and constitutive-example sections |
+| Introduction, Related Work | JetSCI as a 2026 submitted hybrid JAX--PETSc framework for scalable differentiable simulation, with JAX-local differentiated discretizations and PETSc-owned distributed solves | `cattaneo2026jetsci` | arXiv PDF/abstract metadata for arXiv:2604.22087v1, submitted 2026-04-23; preprint evidence only |
 | Introduction, Related Work | FEniTop as a parallel FEniCSx topology-optimization implementation | `jia2024fenitop` | Abstract and implementation overview |
 | Related Work, Topology benchmark | Classical SIMP / educational topology optimization background | `sigmund2001topology` | Abstract and method description |
 | Related Work, Topology benchmark | Topology optimization textbook background | `bendsoe2003topology` | Introductory chapters on SIMP and compliance topology optimization |
@@ -26,12 +28,12 @@ those are presented in the paper as implementation choices of `fenics_nonlinear_
 | Related Work, Topology benchmark | Filter regularization in topology optimization | `bourdin2001filters` | Abstract and formulation sections |
 | Related Work, Methodology | Sparse Jacobian recovery by directional probing | `curtis1974sparsejacobian` | Full note |
 | Related Work, Methodology | Sparse Jacobian / Hessian recovery via graph coloring | `coleman1983sparsejacobian`, `coleman1984sparsehessian` | Full articles |
-| Related Work, Methodology | PETSc as scalable vector/matrix/Krylov/nonlinear infrastructure | `balay1997petsc`, `petsc2024web` | PETSc chapter and current PETSc documentation front page |
+| Related Work, Methodology | PETSc as scalable vector/matrix/Krylov/nonlinear infrastructure | `balay1997petsc`, `petsc2024web` | PETSc chapter and official PETSc 3.25 documentation/citation block, accessed 2026-04-30 |
 | Benchmarks: $p$-Laplace | Weak formulation in `W_0^{1,p}` and minimizer/weak-solution equivalence for the stationary problem | `lindqvist2019plaplace` | Chapter 2, “The Dirichlet Problem and Weak Solutions” |
-| Benchmarks: Ginzburg--Landau | Historical origin of the Ginzburg--Landau model class | `ginzburg1950theory` | Original article record and bibliographic metadata |
+| Benchmarks: Ginzburg--Landau | Historical origin of the Ginzburg--Landau model class | `ginzburg1950theory` | Bibliographic metadata from the CERN record only; no public full text was located or used |
 | Benchmarks: Hyperelasticity | Finite-strain kinematics, deformation gradient notation, Piola stress, and hyperelastic background | `bonet2008nonlinear` | Chapters 4--6 |
 | Benchmarks: Plasticity2D / Plasticity3D | Incremental elastoplasticity, return mapping, and constitutive linearization as the correct continuum reference frame | `simo1985consistent`, `simo1998compinel` | Simo--Taylor abstract and Computational Inelasticity Chapters 1, 3, and 5 |
-| Benchmarks: Plasticity2D / Plasticity3D | Davis strength-reduction background and Davis A/B/C discussion used by later slope-stability papers | `davis1968plasticity`, `tschuchnigg2015nonassociated` | Davis chapter bibliographic record; Tschuchnigg Section 3.3.2 and reference list |
+| Benchmarks: Plasticity2D / Plasticity3D | Davis strength-reduction background and Davis A/B/C discussion used by later slope-stability papers | `davis1968plasticity`, `tschuchnigg2015nonassociated` | Davis chapter metadata verified from the TRID record only; Davis-specific details are used only through later source-backed discussions such as Tschuchnigg Section 3.3.2 and reference list |
 | Related Work, Benchmarks: Plasticity2D / Plasticity3D | Mohr--Coulomb return mapping, nonsmooth constitutive operators, and consistent tangents as the incremental-history reference context | `sysala2017returnmapping` | Metadata/title verified only from the CAS ASEP record and reference metadata; no cached full text is present |
 | Introduction, Related Work, Benchmarks: Plasticity2D / Plasticity3D | Modified shear-strength reduction and variational / optimization viewpoints for slope stability | `sysala2021optimization` | Source-verified from cached PDF: abstract, Davis-modification discussion, and OPT-MSSR formulation |
 | Introduction, Related Work, Benchmarks: Plasticity3D | Published 3D slope-stability source-family context with continuation and iterative-solver evidence | `sysala2025advancedcontinuation` | Source-verified from cached PDF: abstract, method sections, and reported 3D SSR source-family experiments |
@@ -42,3 +44,9 @@ Sysala-family evidence level: the Sysala papers support literature context,
 source-family framing, and continuum/reference-method positioning. They do not
 directly validate the repository's Plasticity3D endpoint surrogate unless a
 numeric artifact comparison for the same case is separately verified.
+
+Limited-access evidence note: `ginzburg1950theory`, `davis1968plasticity`, and
+`sysala2017returnmapping` are not treated as full-text-verified sources in this
+audit. Claims tied to those entries are limited to bibliographic existence,
+historical/source-lineage positioning, or statements corroborated by accessible
+secondary or later primary sources listed in the same row.
