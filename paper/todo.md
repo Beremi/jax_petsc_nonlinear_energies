@@ -1,4 +1,4 @@
-# Paper Submission TODO
+# Paper Submission Checklist
 
 This checklist tracks what remains before submitting the manuscript as a
 scientific-computing/software-methods journal paper. The manuscript claim is
@@ -6,19 +6,23 @@ deliberately scoped: `fenics_nonlinear_energies` is presented as a maintained
 JAX+PETSc workflow with repository-backed benchmark evidence, not as a new
 constitutive theory or a replacement for incremental Mohr-Coulomb plasticity.
 
-## Current State
+## Repository-Backed State
 
-- The paper uses the generic `article` class and is aimed at a scientific
-  computing / software-methods journal.
-- The front matter is populated for Michal B{\'e}re{\v s} with the VSB and
+- The paper stays on the generic `article` class and remains journal-neutral.
+- The front matter is populated for Michal B{\'e}re{\v{s}} with the VSB and
   Institute of Geonics affiliations visible in the related Sysala papers.
 - The active manuscript cites the relevant Sysala geomechanics line:
   return mapping, SSR variational principles, 3D continuation, and geotechnical
   convex optimization.
 - The Plasticity3D text treats the maintained model as an endpoint surrogate and
   keeps source-faithfulness separate from incremental-history equivalence.
-- Generated figures and tables are expected to remain the source of truth for
-  numerical statements.
+- Generated figures and tables remain the source of truth for numerical
+  statements.
+- The appendix now includes a neutral code, data, and reproducibility
+  availability note tied to the GitHub repository, `paper/scripts`, generated
+  table/figure assets, and local `artifacts/raw_results` summaries.
+- The citation-locator audit currently covers every cited scientific source in
+  `paper/literature/claim_audit.md`.
 
 ## Completed Evidence Already In The Draft
 
@@ -30,7 +34,7 @@ constitutive theory or a replacement for incremental Mohr-Coulomb plasticity.
   therefore does not claim constitutive equivalence.
 - Plasticity3D derivative-route ablation:
   element AD, constitutive AD, and colored SFD converge to the same locked
-  state; constitutive AD is the preferred cost-quality route.
+  state; constitutive AD has the lowest median wall time on that locked case.
 - Hyperelasticity companion baseline against JAX-FEM:
   same mesh, material law, and load schedule; the fairness gate passes.
 - Plasticity3D historical distributed timing:
@@ -40,38 +44,30 @@ constitutive theory or a replacement for incremental Mohr-Coulomb plasticity.
   the parallel design-mechanics run remains operational at `768x384` and
   32 ranks.
 
-## Blocking Before Submission
+## External Decisions Still Blocking Submission
 
-1. Choose the exact journal and apply its final formatting requirements.
-   The current draft intentionally remains journal-neutral.
-2. Confirm final author metadata:
-   ORCID, corresponding-author email, funding statement, acknowledgements,
-   conflict-of-interest statement, and data/code availability wording.
-3. Decide whether the repository needs an archived release, Zenodo DOI, or
-   separate artifact DOI for the submitted version.
-4. Run a final citation-locator audit:
-   every externally sourced scientific statement should map to
-   `paper/literature/claim_audit.md`.
-5. Rebuild the PDF from a clean checkout or clean paper build directory and
-   inspect the resulting log for undefined references, undefined citations, and
-   serious overfull boxes.
+1. Choose the exact target journal and apply its template, length, figure,
+   reference-style, and declaration requirements.
+2. Confirm final author metadata: ORCID, corresponding-author email, postal
+   affiliation formatting, and any author-note requirements.
+3. Supply final funding, acknowledgements, and conflict-of-interest /
+   competing-interest declarations. The repository does not contain enough
+   information to state these safely.
+4. Choose and record the project license. No repository license file is present
+   in this checkout.
+5. Decide whether to create an archived source release, Zenodo record, or
+   separate artifact DOI for the submitted version, and add the resulting DOI
+   to the manuscript metadata if required by the journal.
 
-## Manuscript Polish Remaining
+## Final Pre-Submission Checks
 
-- Re-read the abstract, introduction, discussion, and conclusion for any sentence
-  that sounds broader than the repository evidence.
-- Keep framework comparisons factual:
-  no broad speed rankings between JAX+PETSc, JAX-FEM, FEniCS, DOLFINx, cashocs,
-  AutoPDEx, FEniTop, or external-operator workflows.
-- Keep Plasticity3D phrasing consistent:
-  use "endpoint surrogate", "source-faithfulness", and "fixed-lambda
-  source-operator comparison"; avoid "validated incremental plasticity solver"
-  or equivalent language.
-- Check all figure and table captions for claim scope, especially where
-  historical timing evidence is adjacent to glued-bottom `lambda = 1.55`
-  benchmark evidence.
-- Add a concise reproducibility paragraph or note if required by the target
-  journal.
+- Rebuild the PDF from a clean checkout or clean paper build directory.
+- Inspect the resulting log for undefined references, undefined citations, and
+  serious overfull boxes.
+- Re-run the citation/source checks after any bibliography or related-work
+  edits.
+- Re-run focused tests only if a script that generates tables, figures, or
+  literature sources changes.
 
 ## Verification Commands
 
@@ -83,12 +79,11 @@ Run these before the submission snapshot:
 (cd paper && latexmk -pdf main.tex)
 rg -n "TODO|FIXME|Manuscript draft|placeholder|constitutively equivalent|validated incremental" paper/main.tex paper/sections paper/literature
 rg -n "Warning|Citation|undefined|Overfull" paper/build/main.log paper/build/main.blg
+git diff --check
 ```
 
-If any script that generates tables, figures, or literature sources changes,
-also run the focused tests for that script. A full experiment rerun is not part
-of the submission-prep checklist unless the manuscript begins to depend on new
-numerical evidence.
+A full experiment rerun is not part of the submission-prep checklist unless the
+manuscript begins to depend on new numerical evidence.
 
 ## Optional Future Work
 

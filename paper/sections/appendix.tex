@@ -29,13 +29,12 @@ source-assembly comparator and a sourcefixed-like PMG variant.
   \label{tab:plasticity3d-sourcefixed}
 \end{table}
 
-These tables support two narrower statements. First, source assembly remains
-faster than maintained local assembly when both are embedded in the same PMG
-solver stack, although the gap narrows at higher rank counts. Second, the
-sourcefixed-like PMG profile is not the preferred maintained default in the
-present study: it may appear favorable on some rows, but it does more
-nonlinear and Krylov work and converges less consistently across the reported
-runs.
+These tables support two narrower statements. First, source assembly has lower
+reported wall time than maintained local assembly when both are embedded in the
+same PMG solver stack, although the gap narrows at higher rank counts. Second,
+the sourcefixed-like PMG profile is not the preferred maintained default in the
+present study: it may appear favorable on some rows, but it does more nonlinear
+and Krylov work and converges less consistently across the reported runs.
 
 \subsection{Source continuation evidence}
 
@@ -52,7 +51,16 @@ matters even when the outer continuation logic is held fixed.
   \label{tab:source-cont}
 \end{table}
 
-\subsection{Code availability}
+\subsection{Code, data, and reproducibility availability}
 
 The implementation discussed in this paper is available at
-\url{https://github.com/Beremi/fenics_nonlinear_energies}.
+\url{https://github.com/Beremi/fenics_nonlinear_energies}. The manuscript is
+generated from the repository-local paper pipeline. The table, figure,
+literature-source, asset-validation, and reproducibility-note scripts live in
+\path{paper/scripts}. The generated manuscript assets live in
+\path{paper/tables/generated} and \path{paper/figures/generated}. The raw
+benchmark summaries used by those scripts are kept under
+\path{artifacts/raw_results}. The paper build validates that the generated
+assets are present before compiling the PDF. A citable source or artifact
+archive DOI should be supplied in the final submission metadata if required by
+the target journal; this journal-neutral draft does not assert one.

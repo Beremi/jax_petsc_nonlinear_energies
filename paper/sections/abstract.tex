@@ -22,8 +22,9 @@ the manuscript interprets Plasticity3D as a repository-specific surrogate
 approximation rather than as a path-consistent replacement for an incremental
 elastoplastic history solve. On the
 locked \code{P4(L1)}, $\lambda_{\mathrm{sr}}=1.5$, 8-rank derivative ablation,
-constitutive AD is the fastest route while reaching the same terminal state as
-element AD and colored SFD. A matched serial hyperelastic companion baseline
+constitutive AD has the lowest median wall time among the three tested routes
+while reaching the same terminal state as element AD and colored SFD. A matched
+serial hyperelastic companion baseline
 against JAX-FEM on the same mesh, material law, and load schedule passes a 5\%
 fairness gate with energy and field differences below $10^{-3}$.
 
