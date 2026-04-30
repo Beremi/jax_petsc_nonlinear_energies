@@ -6,6 +6,7 @@ from experiments.runners import (
     run_he_pure_jax_suite_best,
     run_plaplace_final_suite,
 )
+from src.problems.hyperelasticity.jax.solve_HE_jax_newton import _result_from_step_message
 
 
 def _single_step_payload(backend: str) -> dict:
@@ -167,3 +168,9 @@ def test_pure_jax_he_summary_contract_keys_are_stable():
         "max_step_time",
         "result",
     }
+
+
+def test_pure_jax_he_status_accepts_lowercase_converged_message():
+    assert _result_from_step_message("Trust-region step converged") == "completed"
+    assert _result_from_step_message("Trust-region tolerances satisfied") == "completed"
+    assert _result_from_step_message("Line search failed") == "failed"

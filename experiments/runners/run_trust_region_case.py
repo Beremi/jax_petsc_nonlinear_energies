@@ -355,6 +355,9 @@ def main() -> None:
     }
 
     if MPI.COMM_WORLD.rank == 0:
+        out_dir = os.path.dirname(os.path.abspath(args.out))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
         print(json.dumps(payload, indent=2))

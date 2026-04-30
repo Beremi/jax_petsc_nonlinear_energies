@@ -590,8 +590,15 @@ def _run_parallel_final(base_dir: Path) -> dict[str, Any]:
     report_info = _save_run_logs(_run(argv, env=THREAD_ENV), asset_dir / "parallel_final_report")
     if report_info["exit_code"] != 0:
         raise RuntimeError("parallel full report failed")
+    command_path = asset_dir / "command.txt"
+    if not command_path.exists():
+        report_text = (asset_dir / "report.md").read_text(encoding="utf-8")
+        solver_command = "cached parallel final solver command unavailable"
+        if "```bash\n" in report_text:
+            solver_command = report_text.split("```bash\n", 1)[1].split("\n```", 1)[0].strip()
+        command_path.write_text(solver_command + "\n", encoding="utf-8")
     payload = {
-        "solver_command": (asset_dir / "command.txt").read_text(encoding="utf-8").strip(),
+        "solver_command": command_path.read_text(encoding="utf-8").strip(),
         "report_command": report_info["command"],
         "metrics": _final_metrics(_read_json(run_json)),
     }

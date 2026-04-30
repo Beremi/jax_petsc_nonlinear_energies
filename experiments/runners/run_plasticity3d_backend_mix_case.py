@@ -1167,15 +1167,17 @@ def _source_free_layout_metadata(
     *,
     source_root: Path,
     mesh_name: str,
+    constraint_variant: str = DEFAULT_PLASTICITY3D_CONSTRAINT_VARIANT,
 ) -> tuple[int, int, int]:
     mesh_name = str(mesh_name)
+    constraint_variant = normalize_constraint_variant(constraint_variant)
     base_mesh_name = str(base_mesh_name_for_name(mesh_name))
     mesh_path = source_root / "meshes" / "3d_hetero_ssr" / raw_mesh_filename_for_name(base_mesh_name)
     if int(uniform_refinement_steps_for_name(mesh_name)) > 0:
         refined_path = ensure_same_mesh_case_hdf5(
             mesh_name,
             4,
-            constraint_variant=PLASTICITY3D_CONSTRAINT_VARIANT_COMPONENTWISE_BOTTOM,
+            constraint_variant=constraint_variant,
         )
         raw, _ = load_case_hdf5_fields(
             refined_path,
@@ -1222,6 +1224,7 @@ def _build_source_assembly_backend(
     *,
     source_root: Path,
     mesh_name: str,
+    constraint_variant: str = DEFAULT_PLASTICITY3D_CONSTRAINT_VARIANT,
     lambda_target: float,
     data_dir: Path,
     need_energy_operator: bool,
@@ -1234,6 +1237,7 @@ def _build_source_assembly_backend(
     started = float(stage_started if stage_started is not None else time.perf_counter())
     _require_source_imports()
     mesh_name = str(mesh_name)
+    constraint_variant = normalize_constraint_variant(constraint_variant)
     base_mesh_name = str(base_mesh_name_for_name(mesh_name))
     mesh_path = source_root / "meshes" / "3d_hetero_ssr" / raw_mesh_filename_for_name(base_mesh_name)
     material_rows = load_material_rows_for_path(mesh_path)
@@ -1255,7 +1259,7 @@ def _build_source_assembly_backend(
         refined_path = ensure_same_mesh_case_hdf5(
             mesh_name,
             4,
-            constraint_variant=PLASTICITY3D_CONSTRAINT_VARIANT_COMPONENTWISE_BOTTOM,
+            constraint_variant=constraint_variant,
         )
         raw, _ = load_case_hdf5_fields(
             refined_path,
@@ -3033,6 +3037,7 @@ def main() -> None:
         backend = _build_source_assembly_backend(
             source_root=Path(args.source_root).resolve(),
             mesh_name=str(args.mesh_name),
+            constraint_variant=str(constraint_variant),
             lambda_target=float(args.lambda_target),
             data_dir=out_dir / "data",
             need_energy_operator=bool(source_need_energy_operator),

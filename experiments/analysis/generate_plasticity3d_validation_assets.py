@@ -58,6 +58,13 @@ def _repo_path(rel: str) -> Path:
     return (REPO_ROOT / str(rel)).resolve()
 
 
+def _repo_rel(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path.resolve())
+
+
 def _save_figure(fig: plt.Figure, out_base: Path) -> None:
     out_base.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_base.with_suffix(".png"), bbox_inches="tight", dpi=260)
@@ -505,7 +512,7 @@ def _build_layer1b(layer_cfg: dict[str, object], out_dir: Path) -> dict[str, obj
     _save_figure(fig, assets_dir / "source_family_history")
     return {
         "kind": "published_source_family_triangulation",
-        "report_md": str(report_path.relative_to(REPO_ROOT)),
+        "report_md": _repo_rel(report_path),
         "summary": {
             "runtime_matlab_s": float(parsed_summary["Runtime [s]"]),
             "runtime_petsc_s": float(next(row["PETSc"] for row in summary_rows if row["Metric"] == "Runtime [s]")),

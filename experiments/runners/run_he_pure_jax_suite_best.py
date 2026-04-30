@@ -122,13 +122,38 @@ def _write_summary_markdown(out_path: Path, rows: list[dict]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
+    parser.add_argument(
+        "--levels",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Optional subset of mesh levels to run. Defaults to the frozen full suite.",
+    )
+    parser.add_argument(
+        "--total-steps",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Optional subset of total-step counts to run. Defaults to the frozen full suite.",
+    )
     args = parser.parse_args()
 
     out_dir = args.out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     rows = []
 
-    for total_steps, level in CASES:
+    allowed_levels = set(args.levels) if args.levels is not None else None
+    allowed_total_steps = set(args.total_steps) if args.total_steps is not None else None
+    cases = [
+        (total_steps, level)
+        for total_steps, level in CASES
+        if (allowed_levels is None or level in allowed_levels)
+        and (allowed_total_steps is None or total_steps in allowed_total_steps)
+    ]
+    if not cases:
+        raise SystemExit("No pure-JAX HE cases selected.")
+
+    for total_steps, level in cases:
         payload = run_level(
             level=level,
             steps=total_steps,

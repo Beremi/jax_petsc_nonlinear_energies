@@ -116,6 +116,13 @@ def _table(headers: list[str], rows: list[list[object]]) -> str:
     return "\n".join(out)
 
 
+def _asset_rel(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return str(path.resolve())
+
+
 def _run_case(ranks: int, json_out: Path) -> dict:
     if USE_CACHE and json_out.exists():
         return json.loads(json_out.read_text())
@@ -370,19 +377,19 @@ def _write_report(rows: list[dict], report_path: Path, asset_dir: Path, *, boost
             "",
             "## Plots",
             "",
-            f"![Wall scaling]({(asset_dir / 'wall_scaling.png').relative_to(REPO_ROOT).as_posix()})",
+            f"![Wall scaling]({_asset_rel(asset_dir / 'wall_scaling.png')})",
             "",
-            f"![Phase scaling]({(asset_dir / 'phase_scaling.png').relative_to(REPO_ROOT).as_posix()})",
+            f"![Phase scaling]({_asset_rel(asset_dir / 'phase_scaling.png')})",
             "",
-            f"![Efficiency]({(asset_dir / 'efficiency.png').relative_to(REPO_ROOT).as_posix()})",
+            f"![Efficiency]({_asset_rel(asset_dir / 'efficiency.png')})",
             "",
-            f"![Quality vs ranks]({(asset_dir / 'quality_vs_ranks.png').relative_to(REPO_ROOT).as_posix()})",
+            f"![Quality vs ranks]({_asset_rel(asset_dir / 'quality_vs_ranks.png')})",
             "",
             "## Raw Data",
             "",
-            f"- CSV summary: `{(asset_dir / 'scaling_summary.csv').relative_to(REPO_ROOT).as_posix()}`",
+            f"- CSV summary: `{_asset_rel(asset_dir / 'scaling_summary.csv')}`",
             *[
-                f"- Rank {row['ranks']} JSON: `{(asset_dir / f'run_r{row['ranks']:02d}.json').relative_to(REPO_ROOT).as_posix()}`"
+                f"- Rank {row['ranks']} JSON: `{_asset_rel(asset_dir / f'run_r{row['ranks']:02d}.json')}`"
                 for row in rows
             ],
             "",
@@ -412,7 +419,7 @@ def main() -> None:
     _plot_quality(rows, asset_dir / "quality_vs_ranks.png")
     _plot_efficiency(rows, asset_dir / "efficiency.png")
     _write_report(rows, report_path, asset_dir, boost_state=_read_boost_state())
-    print(f"Wrote {report_path.relative_to(REPO_ROOT)}")
+    print(f"Wrote {_asset_rel(report_path)}")
 
 
 if __name__ == "__main__":

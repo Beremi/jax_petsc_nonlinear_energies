@@ -22,6 +22,13 @@ from src.problems.hyperelasticity.support.rotate_boundary import (
 )
 
 
+def _result_from_step_message(message: str) -> str:
+    message_lower = str(message).lower()
+    if "converged" in message_lower or "satisfied" in message_lower:
+        return "completed"
+    return "failed"
+
+
 def run_level(
     level: int,
     steps: int,
@@ -146,9 +153,7 @@ def run_level(
     )
     result = "completed"
     if step_results:
-        last_msg = str(step_results[-1]["message"])
-        if "Converged" not in last_msg and "satisfied" not in last_msg:
-            result = "failed"
+        result = _result_from_step_message(str(step_results[-1]["message"]))
 
     if state_out:
         freedofs = np.asarray(mesh.params["dofsMinim"], dtype=np.int64).ravel()

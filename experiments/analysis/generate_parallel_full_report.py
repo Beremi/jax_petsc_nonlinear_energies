@@ -25,6 +25,13 @@ DEFAULT_ASSET_DIR = (
 )
 
 
+def _asset_rel(path: Path) -> str:
+    try:
+        return path.resolve(strict=False).relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return path.resolve(strict=False).as_posix()
+
+
 def _fmt(value: float, digits: int = 4) -> str:
     if isinstance(value, (int, np.integer)):
         return str(int(value))
@@ -344,8 +351,8 @@ def _solver_command(result: dict, snapshot_dir: Path, run_json: Path, state_npz:
             ),
             f"    --mechanics_ksp_max_it {ctx['mechanics_ksp_max_it']} --quiet --print_outer_iterations \\",
             f"    --save_outer_state_history --outer_snapshot_stride 2 \\",
-            f"    --outer_snapshot_dir {snapshot_dir.relative_to(REPO_ROOT)} \\",
-            f"    --json_out {run_json.relative_to(REPO_ROOT)} --state_out {state_npz.relative_to(REPO_ROOT)}",
+            f"    --outer_snapshot_dir {_asset_rel(snapshot_dir)} \\",
+            f"    --json_out {_asset_rel(run_json)} --state_out {_asset_rel(state_npz)}",
         ]
     ).replace("\\\n\n", "\\\n")
 
@@ -493,15 +500,15 @@ def _make_report(
         "",
         "## Final State",
         "",
-        f"![Final state]({state_png.relative_to(REPO_ROOT).as_posix()})",
+        f"![Final state]({_asset_rel(state_png)})",
         "",
         "## Convergence History",
         "",
-        f"![Convergence history]({conv_png.relative_to(REPO_ROOT).as_posix()})",
+        f"![Convergence history]({_asset_rel(conv_png)})",
         "",
         "## Density Step Size",
         "",
-        f"![Outer density step size]({density_step_png.relative_to(REPO_ROOT).as_posix()})",
+        f"![Outer density step size]({_asset_rel(density_step_png)})",
         "",
         "## Run Summary",
         "",
@@ -545,7 +552,7 @@ def _make_report(
         sections[sections.index("## Run Summary"):sections.index("## Run Summary")] = [
             "## Density Evolution",
             "",
-            f"![Density evolution]({density_gif.relative_to(REPO_ROOT).as_posix()})",
+            f"![Density evolution]({_asset_rel(density_gif)})",
             "",
         ]
     sections.extend(
@@ -561,16 +568,16 @@ def _make_report(
             [
                 "## LS Diagnostics",
                 "",
-                f"![LS diagnostics by outer iteration]({ls_outer_png.relative_to(REPO_ROOT).as_posix()})",
+                f"![LS diagnostics by outer iteration]({_asset_rel(ls_outer_png)})",
                 "",
-                f"![LS diagnostics by p stage]({ls_stage_png.relative_to(REPO_ROOT).as_posix()})",
+                f"![LS diagnostics by p stage]({_asset_rel(ls_stage_png)})",
                 "",
             ]
         )
         if has_ls_gamma:
             sections.extend(
                 [
-                    f"![Gamma distance along -grad]({ls_gamma_png.relative_to(REPO_ROOT).as_posix()})",
+                    f"![Gamma distance along -grad]({_asset_rel(ls_gamma_png)})",
                     "",
                 ]
             )
@@ -582,12 +589,12 @@ def _make_report(
         "",
         "## Artifacts",
         "",
-        f"- JSON result: `{run_json.relative_to(REPO_ROOT).as_posix()}`",
-        f"- Final state: `{state_npz.relative_to(REPO_ROOT).as_posix()}`",
-        f"- Outer-history CSV: `{csv_path.relative_to(REPO_ROOT).as_posix()}`",
-        f"- Final-state figure: `{state_png.relative_to(REPO_ROOT).as_posix()}`",
-        f"- Convergence figure: `{conv_png.relative_to(REPO_ROOT).as_posix()}`",
-        f"- Density-step figure: `{density_step_png.relative_to(REPO_ROOT).as_posix()}`",
+        f"- JSON result: `{_asset_rel(run_json)}`",
+        f"- Final state: `{_asset_rel(state_npz)}`",
+        f"- Outer-history CSV: `{_asset_rel(csv_path)}`",
+        f"- Final-state figure: `{_asset_rel(state_png)}`",
+        f"- Convergence figure: `{_asset_rel(conv_png)}`",
+        f"- Density-step figure: `{_asset_rel(density_step_png)}`",
         "",
         "## Reproduction",
         "",
@@ -597,14 +604,14 @@ def _make_report(
         ]
     )
     if has_density_gif:
-        sections.insert(-5, f"- Density-evolution GIF: `{density_gif.relative_to(REPO_ROOT).as_posix()}`")
+        sections.insert(-5, f"- Density-evolution GIF: `{_asset_rel(density_gif)}`")
     else:
         sections.insert(-5, "- Density-evolution GIF: not available for this run (no snapshot frames were saved)")
     if has_ls_diagnostics:
-        sections.insert(-5, f"- LS diagnostics by outer iteration: `{ls_outer_png.relative_to(REPO_ROOT).as_posix()}`")
-        sections.insert(-5, f"- LS diagnostics by p stage: `{ls_stage_png.relative_to(REPO_ROOT).as_posix()}`")
+        sections.insert(-5, f"- LS diagnostics by outer iteration: `{_asset_rel(ls_outer_png)}`")
+        sections.insert(-5, f"- LS diagnostics by p stage: `{_asset_rel(ls_stage_png)}`")
     if has_ls_gamma:
-        sections.insert(-5, f"- LS gamma-distance plot: `{ls_gamma_png.relative_to(REPO_ROOT).as_posix()}`")
+        sections.insert(-5, f"- LS gamma-distance plot: `{_asset_rel(ls_gamma_png)}`")
     return "\n".join(sections).rstrip() + "\n"
 
 
@@ -678,7 +685,7 @@ def main() -> None:
             snapshot_dir=snapshot_dir,
         )
     )
-    print(f"Wrote {report_path.relative_to(REPO_ROOT)}")
+    print(f"Wrote {_asset_rel(report_path)}")
 
 
 if __name__ == "__main__":

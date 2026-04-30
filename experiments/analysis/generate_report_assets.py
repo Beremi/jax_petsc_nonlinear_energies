@@ -218,7 +218,10 @@ def _markdown_table(headers: list[str], rows: list[list[object]]) -> str:
 
 
 def _asset_rel(path: Path) -> str:
-    return str(path.relative_to(REPO_ROOT))
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
 
 
 def _strip_report_indent(report: str) -> str:
@@ -509,7 +512,7 @@ def _solver_command(params: dict) -> str:
                 f"    --ksp_rtol {params['ksp_rtol']} --ksp_max_it {params['ksp_max_it']} "
                 f"--save_outer_state_history --quiet \\"
             ),
-            f"    --json_out {JSON_PATH.relative_to(REPO_ROOT)} --state_out {NPZ_PATH.relative_to(REPO_ROOT)}",
+            f"    --json_out {_asset_rel(JSON_PATH)} --state_out {_asset_rel(NPZ_PATH)}",
         ]
     )
 
@@ -856,8 +859,8 @@ def main() -> None:
     _, _, _ = generate_benchmark_assets(asset_dir=args.asset_dir, report_path=args.report_path)
     report_path = Path(args.report_path).resolve()
     asset_dir = Path(args.asset_dir).resolve()
-    print(f"Wrote {report_path.relative_to(REPO_ROOT)}")
-    print(f"Artifacts in {asset_dir.relative_to(REPO_ROOT)}")
+    print(f"Wrote {_asset_rel(report_path)}")
+    print(f"Artifacts in {_asset_rel(asset_dir)}")
 
 
 if __name__ == "__main__":
