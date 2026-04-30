@@ -1,6 +1,6 @@
-\begin{tabularx}{\textwidth}{@{}>{\hsize=0.92\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=0.86\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=0.92\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=0.94\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=0.84\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=1.02\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X@{}}
+\begin{tabular*}{\textwidth}{@{}>{\RaggedRight\arraybackslash}p{0.16\textwidth}@{\extracolsep{\fill}} >{\RaggedRight\arraybackslash}p{0.13\textwidth} >{\RaggedRight\arraybackslash}p{0.15\textwidth} >{\RaggedRight\arraybackslash}p{0.15\textwidth} >{\RaggedRight\arraybackslash}p{0.14\textwidth} >{\RaggedRight\arraybackslash}p{0.18\textwidth}@{}}
 \toprule
-Family & Modeling & Differentiation & 2nd-order route & Parallel & Closest overlap \\
+Family & Modeling & Differentiation & Second-order route & Parallel & Closest overlap \\
 \midrule
 \shortstack[l]{FEniCS\\DOLFINx\\\citep{logg2012fenicsbook,baratta2025dolfinx}} & High-level variational forms & Problem-specific; AD is not the central claim & Manual or application-specific & Distributed FEM assembly and solve & Elliptic and finite-strain mechanics \\
 \shortstack[l]{dolfin-adjoint\\pyadjoint\\cashocs\\\citep{farrell2013dolfinadjoint,mitusch2019pyadjoint,blauth2023cashocsv2}} & High-level PDE plus optimization loop & Adjoint-based first-order sensitivities & Not the advertised main path & MPI via the host FEM stack & PDE control, shape, and topology \\
@@ -8,6 +8,6 @@ Family & Modeling & Differentiation & 2nd-order route & Parallel & Closest overl
 \shortstack[l]{Firedrake--JAX\\FEniCSx ext. ops\\\citep{yashchuk2023bringing,latyshev2025externaloperators}} & Host FEM stack plus AD bridge & Tangent, adjoint, or local constitutive AD & Local-operator derivatives, not full sparse Hessians & Host framework parallel back end & Parameterized PDEs and constitutive models \\
 \shortstack[l]{JAX-CPFEM\\\citep{hu2025jaxcpfem}} & JAX-native crystal-plasticity FEM & Differentiable constitutive simulator & AD constitutive derivatives & GPU-oriented execution & Crystal plasticity \\
 \shortstack[l]{FEniTop\\\citep{jia2024fenitop}} & FEniCSx topology code & Sensitivity-based design updates & Not a second-order solver paper & Parallel FEniCSx workflow & 2D and 3D topology optimization \\
-\shortstack[l]{This\\repo} & JAX local energies plus PETSc sparse solvers & Element AD, constitutive AD, and colored SFD & Local Hessians/tangents or sparse recovery & PETSc MPI vectors, matrices, SNES, and multigrid & $p$-Laplace, GL, hyperelasticity, plasticity, topology \\
+This work & JAX local energies plus PETSc sparse solvers & Element AD, constitutive AD, and colored SFD & Local Hessians/tangents or sparse recovery & PETSc MPI vectors, matrices, SNES, and multigrid & $p$-Laplace, GL, hyperelasticity, plasticity, topology \\
 \bottomrule
-\end{tabularx}
+\end{tabular*}

@@ -1,10 +1,14 @@
-\begin{tabularx}{\textwidth}{@{}r >{\hsize=1.10\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=1.10\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X@{}}
+\begin{tabular*}{\textwidth}{@{}c@{\extracolsep{\fill}} l c c c c c@{}}
 \toprule
-Ranks & Local + sourcefixed & Source + sourcefixed \\
+Ranks & Route & Wall time [s] & Newton iters & Krylov iters & Final gradient norm & Status \\
 \midrule
-4 & 2115.9 s; 24 N; 204 L; 6.534e-03 & 988.4 s; 21 N; 210 L; 2.491e-03 \\
-8 & 1873.6 s; 33 N; 238 L; 2.533e-03 & 898.0 s; 27 N; 246 L; 9.531e-03 \\
-16 & -- & -- \\
-32 & 347.9 s; 29 N; 250 L; 2.236e-03 & -- \\
+4 & constitutive-AD PMG solver & \num{2116} & 24 & 204 & $\num{6.53}\times 10^{-3}$ & completed \\
+4 & source-assembly PMG variant & \num{988} & 21 & 210 & $\num{2.49}\times 10^{-3}$ & completed \\
+8 & constitutive-AD PMG solver & \num{1874} & 33 & 238 & $\num{2.53}\times 10^{-3}$ & completed \\
+8 & source-assembly PMG variant & \num{898} & 27 & 246 & $\num{9.53}\times 10^{-3}$ & completed \\
+16 & constitutive-AD PMG solver & \num{1304} & 50 & 196 & $\num{2.21}\times 10^{2}$ & failed \\
+16 & source-assembly PMG variant & \num{601} & 50 & 177 & $\num{7.35}\times 10^{2}$ & failed \\
+32 & constitutive-AD PMG solver & \num{348} & 29 & 250 & $\num{2.24}\times 10^{-3}$ & completed \\
+32 & source-assembly PMG variant & \num{398} & 50 & 193 & $\num{8.25}\times 10^{1}$ & failed \\
 \bottomrule
-\end{tabularx}
+\end{tabular*}

@@ -1,4 +1,4 @@
-\begin{tabularx}{\textwidth}{@{}>{\hsize=1.00\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=0.72\hsize\linewidth=\hsize\Centering\arraybackslash}X>{\hsize=0.74\hsize\linewidth=\hsize\Centering\arraybackslash}X>{\hsize=0.82\hsize\linewidth=\hsize\Centering\arraybackslash}X>{\hsize=1.72\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X@{}}
+\begin{tabular}{@{}l c c c >{\RaggedRight\arraybackslash}p{0.38\textwidth}@{}}
 \toprule
 Family & FEniCS & pure JAX & JAX+PETSc & Higher-order / advanced AD \\
 \midrule
@@ -9,4 +9,4 @@ Plasticity2D & no & no & yes & repository scalarized potential and same-mesh PMG
 Plasticity3D & no & no & yes & constitutive AD, element AD, and same-mesh PMG \\
 Topology optimization & no & yes & yes & distributed design updates and PETSc mechanics \\
 \bottomrule
-\end{tabularx}
+\end{tabular}

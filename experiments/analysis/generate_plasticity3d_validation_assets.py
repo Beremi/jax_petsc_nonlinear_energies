@@ -353,7 +353,12 @@ def _plot_boundary_profile(profile_ref: dict[str, np.ndarray], profile_candidate
     _save_figure(fig, out_base)
 
 
-def _source_mesh_mapping(source_root: Path, maintained_coords_ref: np.ndarray) -> dict[str, np.ndarray | float | bool]:
+def _source_mesh_mapping(
+    source_root: Path,
+    maintained_coords_ref: np.ndarray,
+    *,
+    boundary_type: int,
+) -> dict[str, np.ndarray | float | bool]:
     sys.path.insert(0, str((source_root / "src").resolve()))
     try:
         from slope_stability.mesh import load_mesh_from_file, reorder_mesh_nodes  # type: ignore
@@ -363,7 +368,7 @@ def _source_mesh_mapping(source_root: Path, maintained_coords_ref: np.ndarray) -
             "`meshio` dependency inside the main repo environment."
         ) from exc
     mesh_path = source_root / "meshes" / "3d_hetero_ssr" / "SSR_hetero_ada_L1.msh"
-    mesh = load_mesh_from_file(mesh_path, boundary_type=0, elem_type="P2")
+    mesh = load_mesh_from_file(mesh_path, boundary_type=int(boundary_type), elem_type="P2")
     reordered = reorder_mesh_nodes(mesh.coord, mesh.elem, mesh.surf, mesh.q_mask, strategy="block_xyz")
     coords_source = np.asarray(reordered.coord, dtype=np.float64).T
     dist, src_to_maint = cKDTree(np.asarray(maintained_coords_ref, dtype=np.float64)).query(coords_source, k=1)
@@ -373,7 +378,7 @@ def _source_mesh_mapping(source_root: Path, maintained_coords_ref: np.ndarray) -
         "coords_source": coords_source,
         "inv": inv,
         "max_node_distance": float(np.max(dist)),
-        "q_mask_source": np.asarray(reordered.q_mask, dtype=bool).reshape(-1),
+        "q_mask_source": np.asarray(reordered.q_mask, dtype=bool).T,
     }
 
 
@@ -531,7 +536,14 @@ def _build_layer2(manifest: dict[str, object], out_dir: Path) -> dict[str, objec
     rows_cfg = list(manifest["layer2"]["rows"])
     case = load_case_hdf5(same_mesh_case_hdf5_path("hetero_ssr_L1", 2, "glued_bottom"))
     coords_ref = np.asarray(case.nodes, dtype=np.float64)
-    mapping = _source_mesh_mapping(_repo_path(str(manifest["source_root"])), coords_ref)
+    source_boundary_type = int(
+        dict(manifest.get("validation_contract", {})).get("source_mesh_boundary_type", 0)
+    )
+    mapping = _source_mesh_mapping(
+        _repo_path(str(manifest["source_root"])),
+        coords_ref,
+        boundary_type=source_boundary_type,
+    )
     inv = np.asarray(mapping["inv"], dtype=np.int64)
     q_jax = np.zeros(coords_ref.shape[0] * 3, dtype=bool)
     q_jax[np.asarray(case.freedofs, dtype=np.int64)] = True
@@ -656,7 +668,12 @@ def _build_layer2(manifest: dict[str, object], out_dir: Path) -> dict[str, objec
         "kind": "fixed_lambda_source_operator_validation",
         "mapping_checks": {
             "node_map_max_abs_diff": float(mapping["max_node_distance"]),
-            "free_mask_exact": bool(np.array_equal(np.asarray(mapping["q_mask_source"], dtype=bool).reshape((-1, 3))[inv].reshape(-1), q_jax)),
+            "free_mask_exact": bool(
+                np.array_equal(
+                    np.asarray(mapping["q_mask_source"], dtype=bool)[inv].reshape(-1),
+                    q_jax,
+                )
+            ),
         },
         "rows": rows,
         "critical_lambda_schedule_proxy": {

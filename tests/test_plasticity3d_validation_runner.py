@@ -31,5 +31,7 @@ def test_validation_runner_builds_expected_commands(tmp_path: Path) -> None:
     assert "--state-out" in maintained_cmd
     assert "--elem-type" in source_cmd
     assert "P2" in source_cmd
+    assert "--mesh-boundary-type" in source_cmd
+    assert source_cmd[source_cmd.index("--mesh-boundary-type") + 1] == "1"
     assert "--stopping-criterion" in source_cmd
     assert "relative_correction" in source_cmd

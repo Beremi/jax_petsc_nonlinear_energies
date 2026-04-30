@@ -1,12 +1,12 @@
-\begin{tabularx}{\textwidth}{@{}>{\hsize=0.88\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=0.72\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=0.88\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=1.08\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=1.60\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X@{}}
+\begin{tabular}{@{}l c >{\RaggedRight\arraybackslash}p{0.14\textwidth} >{\RaggedRight\arraybackslash}p{0.23\textwidth} >{\RaggedRight\arraybackslash}p{0.26\textwidth}@{}}
 \toprule
 Family & Grid / mesh & Stop rule & Compared paths & Main difficulty \\
 \midrule
-$p$-Laplace & L9 & Newton + line search & FEniCS, pure JAX, JAX+PETSc & nonlinear elliptic solve with exact sparse Hessians \\
-Ginzburg--Landau & L9 & Newton + line search & FEniCS, JAX+PETSc & indefinite local curvature from the double well \\
-Hyperelasticity & L4, 24 steps & trust-region path & FEniCS, pure JAX, JAX+PETSc & nonconvex large-deformation mechanics \\
-Plasticity2D & $P4(L5$--$L7)$ & endpoint or fixed work & JAX+PETSc only & same-mesh PMG and nonlinear tail behavior \\
-Plasticity3D & $P1/P2/P4$ & $\|g\|<10^{-2}$ & local, source, PMG variants & heterogeneous 3D Mohr--Coulomb with constitutive AD \\
+$p$-Laplace & $L_{9}$ & Newton + line search & FEniCS, pure JAX, JAX+PETSc & nonlinear elliptic solve with exact sparse Hessians \\
+Ginzburg--Landau & $L_{9}$ & Newton + line search & FEniCS, JAX+PETSc & indefinite local curvature from the double well \\
+Hyperelasticity & $L_{4}$, 24 steps & trust-region path & FEniCS, pure JAX, JAX+PETSc & nonconvex large-deformation mechanics \\
+Plasticity2D & $P_{4}(L_{5})$--$P_{4}(L_{7})$ & endpoint or fixed work & JAX+PETSc only & same-mesh PMG and nonlinear tail behavior \\
+Plasticity3D & $P_{1}$/$P_{2}$/$P_{4}$ & $\|g\| < \num{0.01}$ & constitutive-AD and source PMG variants & heterogeneous 3D Mohr--Coulomb with constitutive AD \\
 Topology & $768\times384$ & stall-stop continuation & pure JAX, JAX+PETSc & distributed design-mechanics coupling \\
 \bottomrule
-\end{tabularx}
+\end{tabular}

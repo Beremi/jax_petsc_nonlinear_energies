@@ -46,9 +46,10 @@ single benchmark-specific solver. At the same time, \plasticitythree{} and
 topology optimization receive the most detailed comparison because they are the
 closest stress tests for the maintained \jaxpetsc{} path; \plasticitythree{} is
 also the family in which source-faithfulness, surrogate interpretation, and
-historical scaling have to be separated most carefully. The geomechanics context
+timing evidence have to be separated most carefully. The geomechanics context
 for that family follows the finite-element strength-reduction and 3D
-slope-stability literature \citep{tschuchnigg2015nonassociated,sysala2021optimization,sysala2025advancedcontinuation},
+slope-stability literature
+\citep{tschuchnigg2015nonassociated,sysala2017returnmapping,sysala2021optimization,sysala2025convexoptimization,sysala2025advancedcontinuation},
 but the repository object studied here is explicitly the implemented endpoint
 surrogate, not a claim of path-consistent incremental-history equivalence.
 
@@ -105,6 +106,9 @@ optimization and derivative machinery, including line search, trust regions, and
 colored derivative recovery. \Cref{sec:implementation} explains how these ideas
 are mapped onto \purejax{}, \fenics{}, and \jaxpetsc{}. \Cref{sec:benchmarks}
 defines the benchmark suite, with each benchmark separated into literature model
-and repository specialization. \Cref{sec:numerical-examples} then reports the
-timing, scaling, and discretization-comparison evidence, followed by supporting
-solver evidence and a discussion of limitations.
+and repository specialization. \Cref{sec:validation} then reports the
+validation and external-comparison evidence, deliberately separating
+hyperelastic JAX-FEM agreement from the Plasticity3D source-family diagnostic
+ladder. \Cref{sec:numerical-examples} reports timing, scaling, derivative-route,
+and discretization-comparison evidence, followed by supporting solver evidence
+and a discussion of limitations.

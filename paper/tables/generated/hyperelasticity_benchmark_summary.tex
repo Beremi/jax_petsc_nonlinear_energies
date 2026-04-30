@@ -1,9 +1,9 @@
-\begin{tabularx}{\textwidth}{@{}>{\hsize=1.10\hsize\linewidth=\hsize\RaggedRight\arraybackslash}Xr r r r@{}}
+\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}} c c c c@{}}
 \toprule
-Path & Energy & Steps & Linear & Wall [s] \\
+Path & Energy & Steps & Krylov iters & Wall time [s] \\
 \midrule
-fenics\_custom & 197.775074 & 24 & 8722 & 6.512 \\
-jax\_petsc\_element & 197.754582 & 24 & 10595 & 9.359 \\
-jax\_serial & 197.749509 & 24 & 2284 & 41.540 \\
+FEniCS custom Newton & \num{197.775074} & 24 & 8722 & \num{6.51} \\
+JAX+PETSc element AD & \num{197.754582} & 24 & 10595 & \num{9.36} \\
+serial JAX & \num{197.749509} & 24 & 2284 & \num{41.5} \\
 \bottomrule
-\end{tabularx}
+\end{tabular*}

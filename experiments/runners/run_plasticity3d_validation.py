@@ -35,7 +35,7 @@ DEFAULT_LAYER1B_REPORT = (
     / "report.md"
 )
 DEFAULT_OUT_DIR = REPO_ROOT / "artifacts" / "raw_results" / "plasticity3d_validation"
-DEFAULT_SCHEDULE = (1.0, 1.2, 1.4, 1.5, 1.55, 1.6)
+DEFAULT_SCHEDULE = (1.0, 1.2, 1.4, 1.5, 1.55)
 SUMMARY_NAME = "validation_manifest.json"
 RUNNER_NAME = "plasticity3d_validation"
 
@@ -181,6 +181,8 @@ def _source_command(
         str(output_json),
         "--mesh-path",
         str(source_root / "meshes" / "3d_hetero_ssr" / "SSR_hetero_ada_L1.msh"),
+        "--mesh-boundary-type",
+        "1",
         "--elem-type",
         "P2",
         "--node-ordering",
@@ -285,6 +287,7 @@ def main() -> None:
         "validation_contract": {
             "benchmark_family": "Plasticity3D",
             "canonical_case": "glued-bottom heterogeneous P2(L1)",
+            "source_mesh_boundary_type": 1,
             "schedule": [float(v) for v in args.schedule],
             "maintained_ranks": int(args.maintained_ranks),
             "source_reference_ranks": int(args.source_reference_ranks),

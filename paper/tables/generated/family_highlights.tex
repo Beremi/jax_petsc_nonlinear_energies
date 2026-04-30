@@ -1,12 +1,12 @@
-\begin{tabularx}{\textwidth}{@{}p{1.8cm}p{3.55cm}Y@{}}
+\begin{tabularx}{\textwidth}{@{}>{\hsize=0.471\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=1.074\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=1.455\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X@{}}
 \toprule
-Family & \shortstack[l]{Representative\\maintained result} & Highlight \\
+Family & Representative maintained result & Highlight \\
 \midrule
-$p$-Laplace & JAX+PETSc element, level 9, 32 ranks: 1.144 s & Exact element Hessians are competitive with FEniCS and faster than local-SFD on the hardest maintained case. \\
-Ginzburg--Landau & JAX+PETSc element, level 9, 32 ranks: 2.097 s & Element AD remains effectively tied with FEniCS custom on the fine-grid maintained benchmark. \\
-Hyperelasticity & JAX+PETSc element, level 4, 32 ranks: 528.833 s & Hybrid trust-region/line-search globalization sustains large-deformation solves in distributed mode. \\
-Plasticity (2D) & JAX+PETSc deep-tail PMG, $P4(L7)$, 16 ranks: 242.044 s & The dominant bottlenecks shift from the coarse end to the top smoother and repeated Krylov work. \\
-Plasticity3D & local\_constitutiveAD + local\_pmg, $P4(L1_2)$, 32 ranks: 300.435 s & Constitutive AD and local PMG give the cleanest converged strong-scaling story across 1/2/4/8/16/32 ranks. \\
-Topology & parallel JAX+PETSc, $768\times384$, 32 ranks: 25.105 s & Distributed design updates and PETSc mechanics deliver a stable fine-grid workflow while pure JAX remains the serial formulation reference. \\
+$p$-Laplace & JAX+PETSc element AD, $L_{9}$, 32 ranks: \num{1.14} s & Exact element Hessians are competitive with FEniCS and faster than colored SFD on the hardest maintained case. \\
+Ginzburg--Landau & JAX+PETSc element AD, $L_{9}$, 32 ranks: \num{2.1} s & Element AD remains effectively tied with FEniCS custom Newton on the fine-grid maintained benchmark. \\
+Hyperelasticity & JAX+PETSc element AD, $L_{4}$, 32 ranks: \num{529} s & Hybrid trust-region/line-search globalization sustains large-deformation solves in distributed mode. \\
+Plasticity (2D) & JAX+PETSc deep-tail PMG, $P_{4}(L_{7})$, 16 ranks: \num{253} s & The dominant bottlenecks shift from the coarse end to the top smoother and repeated Krylov work. \\
+Plasticity3D & constitutive-AD PMG solver, $P_{4}(L_{2})$, 32 ranks: \num{300} s & Constitutive AD and local PMG give the cleanest converged strong-scaling story across 1/2/4/8/16/32 ranks. \\
+Topology & parallel JAX+PETSc, $768\times384$, 32 ranks: \num{25.1} s & Distributed design updates and PETSc mechanics deliver a stable fine-grid workflow while pure JAX remains the serial formulation reference. \\
 \bottomrule
 \end{tabularx}

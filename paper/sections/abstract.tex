@@ -11,26 +11,29 @@ Krylov solves, and preconditioning, together with three second-order routes:
 element automatic differentiation, constitutive automatic differentiation, and
 colored sparse finite-difference recovery.
 
-The flagship evidence package is the three-dimensional heterogeneous
-Plasticity3D benchmark. A same-case source-faithfulness comparison against the
-source-style implementation is tight, with relative differences
-$3.877\times10^{-5}$ in work, $3.517\times10^{-3}$ in displacement, and
-$8.720\times10^{-3}$ in deviatoric-strain norm. A separate fixed-lambda
-source-operator comparison matches the highest-successful strength-reduction
-schedule proxy but does not satisfy the stricter field-agreement thresholds, so
-the manuscript interprets Plasticity3D as a repository-specific surrogate
-approximation rather than as a path-consistent replacement for an incremental
-elastoplastic history solve. On the
-locked \code{P4(L1)}, $\lambda_{\mathrm{sr}}=1.5$, 8-rank derivative ablation,
-constitutive AD has the lowest median wall time among the three tested routes
-while reaching the same terminal state as element AD and colored SFD. A matched
-serial hyperelastic companion baseline
-against JAX-FEM on the same mesh, material law, and load schedule passes a 5\%
-fairness gate with energy and field differences below $10^{-3}$.
+The evidence is separated into validation and performance layers. For the
+three-dimensional heterogeneous Plasticity3D benchmark, a same-case
+source-faithfulness comparison against the source-style endpoint surrogate is
+tight, with relative differences
+\num{3.877e-5} in work, \num{3.517e-3} in displacement, and
+\num{8.720e-3} in deviatoric-strain norm. A separate fixed-lambda
+source-operator diagnostic uses the matched glued-bottom boundary contract and
+passes the configured field-agreement thresholds, with
+$u_{\max}(\lambda)$ relative $L^2$ difference \num{6.396e-6} and endpoint
+displacement relative $L^2$ difference \num{8.299e-4}. This validates the
+implemented endpoint surrogate within the tested fixed-load contract, but not
+as a path-consistent replacement for an incremental elastoplastic history
+solve. On the locked $P_4(L_1)$,
+$\lambda_{\mathrm{sr}}=1.5$, 8-rank derivative ablation, constitutive AD has
+the lowest median wall time among the three tested routes while reaching the
+same terminal state as element AD and colored SFD. A serial hyperelastic
+companion comparison against JAX-FEM on the same mesh and displacement schedule
+passes a 5\% fairness gate with repository-energy and field differences below
+$10^{-3}$; this evidence is hyperelastic-only.
 
-The largest maintained distributed campaign remains the promoted
-\plasticitythree{} study on \code{P4(L1\_2)} with \code{local\_constitutiveAD +
-local\_pmg}, which attains $\num{18.05}\times$ end-to-end speedup on 32 MPI
+The largest maintained distributed timing study remains the promoted
+\plasticitythree{} study on $P_4(L_2)$ with \localpmg{}, which attains
+$\num{18.05}\times$ end-to-end speedup on 32 MPI
 ranks relative to one rank at the same promoted nonlinear target. The topology
 optimization study complements this with a distributed design-and-mechanics
 workflow that remains operational at $768\times 384$ resolution and 32 ranks.

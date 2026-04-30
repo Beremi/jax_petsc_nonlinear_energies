@@ -91,6 +91,7 @@ def text_figure_size(
 def paper_width_in(layout: dict[str, float], preset: str = "full") -> float:
     preset = str(preset)
     scales = {
+        "subfigure": 0.46,
         "full": 1.0,
         "medium": 0.84,
         "narrow": 0.72,

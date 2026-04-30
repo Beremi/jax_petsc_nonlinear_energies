@@ -30,8 +30,9 @@ constitutive theory or a replacement for incremental Mohr-Coulomb plasticity.
   work relative difference `3.877e-05`, displacement relative L2 `3.517e-03`,
   and deviatoric-strain relative L2 `8.720e-03`.
 - Plasticity3D fixed-lambda source-operator layer:
-  highest-successful-lambda proxy agrees, but field thresholds fail; the draft
-  therefore does not claim constitutive equivalence.
+  highest-successful-lambda proxy agrees and the corrected glued-bottom
+  source-operator field thresholds pass; the draft still does not claim
+  path-consistent incremental-history equivalence.
 - Plasticity3D derivative-route ablation:
   element AD, constitutive AD, and colored SFD converge to the same locked
   state; constitutive AD has the lowest median wall time on that locked case.

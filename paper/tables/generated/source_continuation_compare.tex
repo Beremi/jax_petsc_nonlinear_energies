@@ -1,8 +1,8 @@
-\begin{tabularx}{\textwidth}{@{}>{\hsize=1.45\hsize\linewidth=\hsize\RaggedRight\arraybackslash}Xr r r r@{}}
+\begin{tabular*}{\textwidth}{@{}l@{\extracolsep{\fill}} c c c c c@{}}
 \toprule
-Case & Runtime [s] & Init linear & Continuation linear & Final $\lambda$ \\
+Policy & Ranks & Runtime [s] & Init Krylov iters & Continuation Krylov iters & Final $\lambda$ \\
 \midrule
-source PMG-shell fixed, 8 ranks & 489.460 & 58 & 733 & 1.568403 \\
-source PMG-shell fixed, 32 ranks & 198.217 & 60 & 829 & 1.568334 \\
+fixed PMG-shell smoother & 8 & \num{489} & 58 & 733 & \num{1.568403} \\
+fixed PMG-shell smoother & 32 & \num{198} & 60 & 829 & \num{1.568334} \\
 \bottomrule
-\end{tabularx}
+\end{tabular*}

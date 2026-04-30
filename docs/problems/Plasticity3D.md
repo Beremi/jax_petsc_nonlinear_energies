@@ -6,7 +6,8 @@ strength-reduction benchmark implemented under
 2D plasticity page, but it follows the source benchmark more directly:
 heterogeneous materials, source Gmsh physical-group labels, gravity along the
 source `y` axis, same-mesh tetrahedral `P1/P2/P4` spaces, and autodiff of one
-scalar 3D potential.
+scalar 3D potential. Its source-comparison evidence is for an endpoint
+surrogate, not for a path-consistent incremental elastoplastic history.
 
 The primary documented result on this page is the corrected glued-bottom
 maintained-local `lambda = 1.55` study across same-mesh `P1`, `P2`, and `P4`
@@ -30,7 +31,7 @@ J(u_{\mathrm{free}})
 \mu_{eq}, K_{eq}, \lambda_{eq}\right).
 $$
 
-The constitutive path is intentionally source-faithful:
+The endpoint-surrogate constitutive path is intentionally source-aligned:
 
 - Davis-B reduction remains runtime-controlled by `lambda`
 - the local density is the 3D scalar Mohr-Coulomb potential, not a hand-coded
@@ -143,9 +144,11 @@ highest-resolution glued-bottom runs.
 
 ## Primary Solve Card: `P2(L1), lambda = 1.6`
 
-This is the main validated 3D solve currently documented on the page. It is a
-fresh run from scratch, not a continuation replay, and it uses an elastic
-bootstrap before switching to the pure Mohr-Coulomb tangent.
+This is the main documented 3D endpoint-surrogate solve currently shown on the
+page. It is a fresh run from scratch, not a continuation replay, and it uses an
+elastic bootstrap before switching to the pure Mohr-Coulomb tangent. It should
+not be read as validation of path-consistent incremental elastoplastic
+mechanics.
 
 ### Solver stack
 
@@ -287,19 +290,27 @@ For the implementation-level distinction between the old whole-element
 autodiff path and the newer quadrature-point constitutive autodiff path, see
 [Plasticity3D autodiff modes](../implementation/plasticity3d_autodiff_modes.md).
 
-## Annex: Octave vs JAX `P2` Direct-Branch Comparison
+## Annex: Octave vs JAX `P2` Endpoint-Surrogate Direct-Branch Comparison
 
 The detailed source comparison is kept in the annex so the main card can stay
 focused on the from-scratch `lambda = 1.6` solve. This annex compares the
 source Octave direct-continuation branch against the JAX/PETSc replay at the
-same accepted `lambda` values.
+same accepted `lambda` values. This is the Layer 1A same-case
+source-faithfulness check for the endpoint surrogate only.
+
+The current validation artifact
+`artifacts/raw_results/plasticity3d_validation/comparison_summary.json`
+reports `free_mask_exact: false` for this Layer 1A check. That conflicts with
+older documentation that called the free-DOF mask exact, so the table below
+keeps the artifact value and treats the comparison as close endpoint agreement
+rather than exact DOF-level identity.
 
 ### Structural checks at final `lambda = 1.6`
 
 | check | value |
 | --- | --- |
 | node map max abs diff | `1.421085e-14` |
-| free-DOF mask exact | `True` |
+| free-DOF mask exact | `false` |
 | force relative diff | `5.422233e-16` |
 | force max abs diff | `3.092282e-11` |
 | macro P2 tet vertex connectivity exact | `True` |
@@ -336,6 +347,21 @@ a source-history bookkeeping quirk rather than a true state mismatch.
 - displacement relative L2 diff: `3.517247e-03`
 - deviatoric-strain relative L2 diff: `8.720006e-03`
 
+Layer 2 in the same validation package is a fixed-lambda source-operator
+diagnostic, not a path-consistent incremental-history validation. The corrected
+source comparison uses `mesh_boundary_type = 1`, which matches the maintained
+glued-bottom free-DOF contract. With that boundary contract and the corrected
+source-mask orientation check, the artifact reports `free_mask_exact: true`
+for Layer 2. The capped schedule stops at the main-figure target
+`lambda = 1.55`, and the field-agreement checks pass their thresholds:
+`u_max(lambda)` relative L2 is `6.396122e-06`, endpoint displacement relative
+L2 is `8.299122e-04`, endpoint deviatoric-strain relative L2 is
+`4.306838e-03`, boundary-profile relative L2 is `5.228882e-04`, and the
+artifact records `overall_pass: true`. Older pre-correction Layer 2 outputs
+used source `mesh_boundary_type = 0` and therefore compared against the
+componentwise-bottom mask; that boundary mismatch explains the visibly
+different `u_max(lambda)` curve.
+
 ### Branch visual summary
 
 ![Octave vs JAX branch summary](../assets/plasticity3d/plasticity3d_p2_compare_branch_summary.png)
@@ -364,7 +390,8 @@ a source-history bookkeeping quirk rather than a true state mismatch.
 - The surface and slice plots focus on deviatoric strain because that is also
   the source benchmark's primary visual field for the 3D slope example.
 - The current 3D implementation still uses zero plastic-history placeholders
-  (`eps_p_old = 0`) rather than a full path-consistent history update loop.
+  (`eps_p_old = 0`) rather than a full path-consistent history update loop; the
+  source-comparison evidence above is endpoint-surrogate evidence only.
 - The maintained 2D plasticity path under `src/problems/slope_stability/`
   remains unchanged.
 

@@ -1,14 +1,18 @@
-\begin{tabularx}{\textwidth}{@{}>{\hsize=1.25\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X>{\hsize=1.55\hsize\linewidth=\hsize\RaggedRight\arraybackslash}X@{}}
+\begin{tabular*}{\textwidth}{@{}>{\RaggedRight\arraybackslash}p{0.15\textwidth}@{\hspace{1.0em}}>{\RaggedRight\arraybackslash}p{0.30\textwidth}@{\extracolsep{\fill}}c c c@{}}
 \toprule
-Metric & Value \\
+Group & Quantity & Relative difference & Median wall time [s] & Status \\
 \midrule
-matched problem contract & yes \\
-final energy relative difference & 8.244e-06 \\
-full-field displacement relative L2 & 2.011e-04 \\
-centerline relative L2 & 5.473e-05 \\
-$u_{\max}$ curve relative L2 & 8.851e-16 \\
-repo median wall time [s] & 0.176 \\
-JAX-FEM median wall time [s] & 2.524 \\
-fairness gate & pass \\
+Agreement & final energy & $\num{8.24}\times 10^{-6}$ & -- & -- \\
+Agreement & full-field displacement relative $L^2$ & $\num{2.01}\times 10^{-4}$ & -- & -- \\
+Agreement & centerline relative $L^2$ & $\num{5.47}\times 10^{-5}$ & -- & -- \\
+Agreement & $u_{\max}$ curve relative $L^2$ & $\num{8.85}\times 10^{-16}$ & -- & -- \\
+\addlinespace
+Timing & this work serial direct & -- & \num{0.176} & -- \\
+Timing & JAX-FEM UMFPACK serial & -- & \num{2.52} & -- \\
+\addlinespace
+Contract/gate & same mesh path & -- & -- & pass \\
+Contract/gate & same displacement schedule & -- & -- & pass \\
+Contract/gate & agreement thresholds & -- & -- & pass \\
+Contract/gate & repository-energy post-comparison & -- & -- & used \\
 \bottomrule
-\end{tabularx}
+\end{tabular*}

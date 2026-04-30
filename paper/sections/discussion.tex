@@ -6,7 +6,7 @@ The results support four main conclusions.
 Plasticity3D case.}
 \Cref{fig:plasticity3d-derivative-ablation,tab:plasticity3d-derivative-ablation}
 show a clean cost-quality picture on the locked
-\code{P4(L1)}, $\lambda_{\mathrm{sr}}=1.5$, 8-rank case. All three routes
+$P_4(L_1)$, $\lambda_{\mathrm{sr}}=1.5$, 8-rank case. All three routes
 reach essentially the same terminal state with the same nonlinear and Krylov
 counts, so the comparison is about cost rather than about different converged
 solutions. On that evidence, constitutive AD is the preferred maintained route:
@@ -18,28 +18,30 @@ The Plasticity3D validation ladder in
 \Cref{fig:plasticity3d-validation,tab:plasticity3d-validation} changes how the
 paper should phrase its mechanics claims. Same-case source-faithfulness to the
 source-style surrogate implementation is strong, and that is an important
-result for software credibility. However, the fixed-lambda source-operator
-comparison does not satisfy the stricter agreement thresholds on
-$u_{\max}(\lambda)$ and endpoint displacement fields. The right interpretation
-is therefore limited but still publishable: the maintained implementation
-faithfully reproduces the intended surrogate workflow, yet the present evidence
-does not justify describing that surrogate as a path-consistent incremental
-elastoplastic history solve.
+result for software credibility. The fixed-lambda source-operator comparison
+also satisfies the configured endpoint field-agreement thresholds once the
+source boundary condition is matched to the maintained glued-bottom mask. The
+right interpretation is therefore stronger but still scoped: the maintained
+implementation faithfully reproduces the intended endpoint-surrogate workflow,
+yet the present evidence does not justify describing that surrogate as a
+path-consistent incremental elastoplastic history solve or as a verified
+numeric reproduction of the Sysala source-family papers.
 
 \paragraph{Matched external baselines are useful when the contract is narrow.}
 The hyperelastic companion comparison against JAX-FEM in
 \Cref{fig:hyperelasticity-jaxfem-baseline,tab:hyperelasticity-jaxfem-baseline}
 shows that a narrow, fairness-first external baseline can survive review-level
-scrutiny. Here the exact mesh, constitutive law, and displacement schedule are
-matched, and the resulting energy and field differences are very small. That
-baseline is useful precisely because it is narrow. The paper should not
-generalize it into a broad ranking between frameworks, but it does strengthen
-the manuscript by showing that at least one recent external implementation can
-be matched on a shared problem contract.
+scrutiny. Here the mesh and prescribed displacement schedule are matched, and
+the terminal states are post-compared with the repository energy; the resulting
+energy and field differences are very small. The comparison is useful precisely
+because it is narrow and hyperelastic-only. The paper should not generalize it
+into a broad ranking between frameworks or into plasticity validation, but it
+does strengthen the manuscript by showing that at least one recent external
+implementation can be matched on a shared hyperelastic problem contract.
 
 \paragraph{Fairness and limitations remain part of the scientific result.}
 Several limitations should stay explicit. The promoted Plasticity3D strong
-scaling campaign at $\lambda_{\mathrm{sr}}=1.0$ is historical workflow
+scaling study at $\lambda_{\mathrm{sr}}=1.0$ is historical workflow
 evidence, not a direct continuation of the glued-bottom
 $\lambda_{\mathrm{sr}}=1.55$ matched-comparison figures. The topology study is
 reported as end-to-end workflow scaling rather than fixed-work strong scaling.

@@ -92,7 +92,7 @@ geometric complications.
   \label{tab:plaplace-benchmark}
 \end{table}
 
-The benchmark-local picture is therefore one of formulation agreement:
+The within-benchmark picture is therefore one of formulation agreement:
 \cref{fig:plaplace-energy-levels,tab:plaplace-benchmark} show that the
 maintained routes converge to the same discrete energy from
 \cref{eq:plaplace-discrete}. Scaling and timing for this family are reported in
@@ -192,8 +192,8 @@ compressible Neo-Hookean-type density
   \label{eq:hyperelasticity-energy}
 \end{equation}
 on $\Omega = [0,0.4] \times [-0.005,0.005]^2$ with
-$C_1 = \num{3.8461538461538464e7}$ and
-$D_1 = \num{8.333333333333333e7}$. The left face is clamped, while the right
+$C_1 \approx \num{3.846e7}$ and
+$D_1 \approx \num{8.333e7}$. The left face is clamped, while the right
 face carries the prescribed rotating Dirichlet load path used throughout the
 repository, parametrized by load step $\eta$. The strong form is
 \begin{equation}
@@ -251,13 +251,14 @@ scientifically important than derivative parity alone.
   \label{tab:hyperelasticity-benchmark}
 \end{table}
 
-The benchmark-local takeaway is therefore a globalization result:
+The within-benchmark takeaway is therefore a globalization result:
 \cref{fig:hyperelasticity-state,fig:hyperelasticity-energy-levels} show the
 terminal deformed state and terminal energies, while the scaling evidence is
-deferred to \Cref{sec:num-hyperelasticity}. That later section also adds one
-matched serial companion baseline against JAX-FEM on the same mesh, material
-law, and displacement schedule; it is included as a fairness-first
-implementation comparison rather than as a broad framework ranking exercise.
+deferred to \Cref{sec:num-hyperelasticity}. The separate validation section
+adds one serial companion comparison against JAX-FEM on the same mesh and
+prescribed displacement schedule, with repository-energy post-comparison; it is
+included as a fairness-first hyperelastic implementation comparison rather than
+as a broad framework ranking exercise.
 
 \subsection{Plasticity2D}
 \label{sec:bench-plasticity2d}
@@ -347,8 +348,8 @@ surrogates rather than path-consistent history updates.
   \includegraphics[width=\PaperFigureNarrow]{plasticity2d_resolution_energy.pdf}
   \caption{Resolution trend for the maintained Plasticity2D family. The plotted
   terminal energies are evaluations of \cref{eq:plasticity2d-discrete} on the
-  curated $P4(L5)$ showcase and on the larger fixed-work $P4(L6)$ and
-  $P4(L7)$ campaigns.}
+  curated $P_4(L_5)$ showcase and on the larger fixed-work $P_4(L_6)$ and
+  $P_4(L_7)$ studies.}
   \label{fig:plasticity2d-energy-levels}
 \end{figure}
 
@@ -370,7 +371,7 @@ paper. Solver-engineering evidence for Plasticity2D is reported later in
 The literature model is again quasi-static Mohr--Coulomb equilibrium with
 constitutive/history updates, now on a three-dimensional heterogeneous slope
 geometry
-\citep{davis1968plasticity,simo1985consistent,simo1998compinel,tschuchnigg2015nonassociated,sysala2017returnmapping,sysala2025advancedcontinuation}.
+\citep{davis1968plasticity,simo1985consistent,simo1998compinel,tschuchnigg2015nonassociated,sysala2017returnmapping,sysala2021optimization,sysala2025convexoptimization,sysala2025advancedcontinuation}.
 The unknown is a displacement field
 $u = (u_x,u_y,u_z): \Omega \to \mathbb{R}^3$, gravity acts in the source
 $y$-direction. At increment $n+1$, the continuum equilibrium equations are
@@ -396,11 +397,14 @@ The corresponding weak form is
 The repository specialization studied in this paper uses the imported SSR mesh
 hierarchy with same-mesh tetrahedral $P1/P2/P4$ spaces, source component-wise
 boundary labels, and an additional glued-bottom condition that fixes every node
-with $|y| \le 10^{-12}$ in all three displacement components. The benchmark-local
-figures below use the corrected glued-bottom $\code{P4(L1\_2)}$ showcase at
-$\lambda_{\mathrm{sr}}=1.55$ and the finished nine-case maintained-local study
+with $|y| \le 10^{-12}$ in all three displacement components. We write
+$P_k(L_\ell)$ for polynomial degree $k$ on mesh level $\ell$; the repository
+mesh identifiers \code{L1}, \code{L1\_2}, \code{L1\_2\_3}, and
+\code{L1\_2\_3\_4} are displayed in the manuscript as $L_1,\ldots,L_4$.
+The figures below use the corrected glued-bottom $P_4(L_2)$ showcase at
+$\lambda_{\mathrm{sr}}=1.55$ and the finished nine-case maintained study
 at the same load factor. The promoted $\lambda_{\mathrm{sr}}=1.0$ strong-scaling
-campaign is kept later in the paper as separate historical timing evidence.
+study is kept later in the paper as separate historical timing evidence.
 For those endpoint and continuation studies, the maintained code evaluates the
 following algorithmic scalar surrogate:
 \begin{equation}
@@ -561,12 +565,13 @@ history functional, the results section reports this family with a separate
 validation ladder. Same-case source-faithfulness to the source-style surrogate
 implementation is treated separately from a fixed-lambda source-operator
 comparison. The latter checks source-family behavior under matched geometry,
-materials, boundary constraints, and reduction parameters, but it is not a
-path-consistent incremental-history validation. The paper therefore keeps the
-Plasticity3D claims at the level of a repository-specific surrogate
-approximation rather than a path-consistent replacement. The related
-convex-optimization and continuation literature
-\citep{sysala2025convexoptimization,sysala2025advancedcontinuation} is used as
+materials, Davis-B reduction parameters, load schedule, and glued-bottom
+free-DOF mask, but it is not a path-consistent incremental-history validation.
+The paper therefore keeps the Plasticity3D claims at the level of a
+repository-specific endpoint surrogate rather than a path-consistent
+replacement. The related
+return-mapping, optimization, convex-optimization, and continuation literature
+\citep{sysala2017returnmapping,sysala2021optimization,sysala2025convexoptimization,sysala2025advancedcontinuation} is used as
 source-family context, not as evidence that this repository surrogate is a full
 incremental elastoplastic solver.
 
@@ -575,7 +580,7 @@ incremental elastoplastic solver.
   \includegraphics[width=\PaperFigureMedium]{plasticity3d_state_pair.pdf}
   \caption{Corrected glued-bottom Plasticity3D showcase at
   $\lambda_{\mathrm{sr}}=1.55$: displacement magnitude and surface deviatoric
-  strain for the maintained-local \code{P4(L1\_2)} run, both derived from the
+  strain for the maintained $P_4(L_2)$ run, both derived from the
   scalar surrogate in
   \cref{eq:plasticity3d-discrete}.}
   \label{fig:plasticity3d-state}
@@ -585,7 +590,7 @@ incremental elastoplastic solver.
   \centering
   \includegraphics[width=\PaperFigureMedium]{plasticity3d_convergence.pdf}
   \caption{Newton-history convergence for all nine completed corrected
-  glued-bottom maintained-local Plasticity3D study runs at
+  glued-bottom maintained Plasticity3D study runs at
   $\lambda_{\mathrm{sr}}=1.55$. The upper panel shows the value of the
   algorithmic surrogate from \cref{eq:plasticity3d-discrete}; the lower panel
   shows the gradient norm used as the nonlinear stopping metric, with color
@@ -596,7 +601,7 @@ incremental elastoplastic solver.
 \begin{table}[H]
   \centering
   \input{tables/generated/plasticity3d_benchmark_summary.tex}
-  \caption{All nine completed glued-bottom maintained-local Plasticity3D
+  \caption{All nine completed glued-bottom maintained Plasticity3D
   study rows at $\lambda_{\mathrm{sr}} = 1.55$, reported as endpoint values of
   \cref{eq:plasticity3d-discrete}.}
   \label{tab:plasticity3d-benchmark}
@@ -608,8 +613,8 @@ incremental elastoplastic solver.
   \caption{Shared-scale upper $y$-slice comparison of
   $\|\varepsilon_{\mathrm{dev}}\|$ from \cref{eq:plasticity3d-devnorm} at the
   highest mesh level of each degree line:
-  \code{P1(L1\_2\_3\_4)}, \code{P2(L1\_2\_3)}, and \code{P4(L1\_2)}. The three
-  runs use the corrected glued-bottom maintained-local solver stack at
+  $P_1(L_4)$, $P_2(L_3)$, and $P_4(L_2)$. The three
+  runs use the corrected glued-bottom maintained solver stack at
   $\lambda_{\mathrm{sr}} = 1.55$ and are compared on one common color scale.}
   \label{fig:plasticity3d-highest-slice}
 \end{figure}
@@ -693,7 +698,7 @@ notation. The maintained outer loop alternates mechanics solves for
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.96\PaperFigureNarrow]{topology_history.pdf}
+  \includegraphics[width=\PaperFigureNarrow]{topology_history.pdf}
   \caption{Objective-history view for the reduced topology objective
   \cref{eq:topology-reduced-objective}, with compliance on the left axis and
   volume fraction plus the continuation schedule in $p$ on the right axis.}

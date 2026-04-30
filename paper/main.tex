@@ -49,7 +49,7 @@
 \newcommand{\purejax}{pure JAX}
 \newcommand{\fenics}{FEniCS}
 \newcommand{\plasticitythree}{Plasticity3D}
-\newcommand{\localpmg}{\code{local\_constitutiveAD + local\_pmg}}
+\newcommand{\localpmg}{constitutive-AD local assembly with same-mesh PMG}
 \newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
 \newcolumntype{L}[1]{>{\RaggedRight\arraybackslash\hsize=#1\hsize\linewidth=\hsize}X}
 \newcolumntype{C}[1]{>{\Centering\arraybackslash\hsize=#1\hsize\linewidth=\hsize}X}
@@ -97,7 +97,10 @@ Michal B{\'e}re{\v{s}}\\
 \section{Benchmark Problems}
 \input{sections/benchmarks}
 
-\section{Numerical Examples}
+\section{Validation and External Comparisons}
+\input{sections/validation}
+
+\section{Performance and Solver Behavior}
 \input{sections/results}
 
 \section{Additional Solver Evidence}

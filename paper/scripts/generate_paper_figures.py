@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import subprocess
 import sys
@@ -11,14 +10,15 @@ from pathlib import Path
 import h5py
 import matplotlib
 import numpy as np
+import scipy.io
 from matplotlib.ticker import FormatStrFormatter
+from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from common import (
     FIGURES_ROOT,
     REPO_ROOT,
-    copy_asset,
     configure_paper_matplotlib,
     ensure_paper_dirs,
     load_layout,
@@ -36,6 +36,7 @@ from experiments.analysis.generate_plasticity3d_p4_l1_docs_assets import (
     _quadrature_points_tetra as plasticity3d_quadrature_points_tetra,
     _surface_plot_arrays as plasticity3d_surface_plot_arrays,
 )
+from experiments.analysis.hyperelastic_companion_common import centerline_profile
 from src.problems.slope_stability.support.mesh import build_same_mesh_lagrange_case_data
 from src.problems.slope_stability_3d.support.mesh import (
     load_case_hdf5,
@@ -352,7 +353,6 @@ def _draw_hyperelasticity_box_annotations(ax, bounds_min: np.ndarray, bounds_max
     dx, dy, dz = spans
 
     box = Line3DCollection(_box_edges(bounds_min, bounds_max), colors="black", linewidths=0.85)
-    box.set_rasterized(True)
     ax.add_collection3d(box)
 
     tick_color = "black"
@@ -759,8 +759,6 @@ def generate_plasticity2d_figures(layout: dict[str, float]) -> list[str]:
         pc = ax.tripcolor(triangulation, values, **plot_kwargs)
         pc.set_rasterized(True)
         mesh_lines = ax.triplot(macro, color="black", linewidth=0.12, alpha=0.10)
-        for line in mesh_lines:
-            line.set_rasterized(True)
         ax.set_aspect("equal")
         ax.set_xlabel(r"$x$")
         ax.set_ylabel(r"$y$" if idx == 0 else "")
@@ -957,11 +955,8 @@ def generate_plasticity3d_state_figures(layout: dict[str, float]) -> list[str]:
     dev_vmax = float(np.quantile(np.asarray(nodal_dev, dtype=np.float64), 0.995))
     dev_norm = Normalize(vmin=0.0, vmax=max(dev_vmax, 1.0e-12))
 
-    # Approved 2026-04-16 follow-up layout for Figure 14:
-    # taller canvas, colorbars pulled closer to the 3D panels, and cropped
-    # hybrid PDF output (vector except rasterized surface triangles).
-    fig = plt.figure(figsize=paper_figure_size(layout, preset="medium", height_ratio=1.00))
-    gs = fig.add_gridspec(1, 2, left=0.035, right=0.965, bottom=0.57, top=0.97, wspace=0.10)
+    fig = plt.figure(figsize=paper_figure_size(layout, preset="medium", height_ratio=0.60))
+    gs = fig.add_gridspec(2, 2, height_ratios=[1.0, 0.08], left=0.03, right=0.96, bottom=0.13, top=0.96, wspace=0.08, hspace=0.04)
     ax_disp = fig.add_subplot(gs[0, 0], projection="3d")
     ax_dev = fig.add_subplot(gs[0, 1], projection="3d")
     _plot_plasticity3d_surface_panel(
@@ -982,8 +977,8 @@ def generate_plasticity3d_state_figures(layout: dict[str, float]) -> list[str]:
     disp_sm.set_array(np.asarray(nodal_disp_mag, dtype=np.float64))
     dev_sm = cm.ScalarMappable(norm=dev_norm, cmap="magma")
     dev_sm.set_array(np.asarray(nodal_dev, dtype=np.float64))
-    cax1 = fig.add_axes([0.11, 0.643, 0.30, 0.018])
-    cax2 = fig.add_axes([0.59, 0.643, 0.30, 0.018])
+    cax1 = fig.add_subplot(gs[1, 0])
+    cax2 = fig.add_subplot(gs[1, 1])
     cbar1 = fig.colorbar(disp_sm, cax=cax1, orientation="horizontal")
     cbar1.set_label(r"$\|u\|$", labelpad=0.3)
     cbar1.ax.tick_params(pad=1.5)
@@ -991,13 +986,8 @@ def generate_plasticity3d_state_figures(layout: dict[str, float]) -> list[str]:
     cbar2.set_label(r"$\|\varepsilon_{\mathrm{dev}}\|$", labelpad=0.3)
     cbar2.ax.tick_params(pad=1.5)
     out = FIGURES_ROOT / "plasticity3d_state_pair.pdf"
-    raw_out = out.with_name("plasticity3d_state_pair_raw.pdf")
-    fig.savefig(out.with_suffix(".png"), format="png", dpi=260)
-    fig.savefig(raw_out, format="pdf", dpi=660)
+    save_pdf_and_png(fig, out, png_dpi=260)
     plt.close(fig)
-    subprocess.run(["pdfcrop", "--margins", "0", str(raw_out), str(out)], check=True)
-    if raw_out.exists():
-        raw_out.unlink()
     conv_out = _generate_plasticity3d_convergence_figure(layout)
     return [out.name, conv_out]
 
@@ -1273,8 +1263,7 @@ def generate_topology_history(layout: dict[str, float]) -> str:
     p_penal = np.asarray([float(row["p_penal"]) for row in rows], dtype=np.float64)
     p_ratio = p_penal / max(float(np.max(p_penal)), 1.0e-12)
 
-    base_w, base_h = paper_figure_size(layout, preset="narrow", height_ratio=0.54)
-    fig, ax = plt.subplots(figsize=(0.96 * base_w, 0.96 * base_h))
+    fig, ax = plt.subplots(figsize=paper_figure_size(layout, preset="narrow", height_ratio=0.54))
     ax_right = ax.twinx()
 
     compliance_line = ax.plot(outer, compliance, color="#111111", linewidth=1.8, label="compliance")[0]
@@ -1467,13 +1456,251 @@ def generate_framework_overview(layout: dict[str, float]) -> str:
     return out.name
 
 
-def copy_external_figure(src: Path, dest_name: str) -> str:
-    dest = FIGURES_ROOT / dest_name
-    copy_asset(src, dest)
-    png_src = src.with_suffix(".png")
-    if png_src.exists():
-        copy_asset(png_src, dest.with_suffix(".png"))
-    return dest.name
+def _surface_compare_panel(
+    ax,
+    *,
+    coords_final: np.ndarray,
+    surface_faces: np.ndarray,
+    nodal_values: np.ndarray,
+    cmap_name: str,
+    norm,
+) -> np.ndarray:
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+    coords_plot, tri_plot, values = plasticity3d_surface_plot_arrays(
+        np.asarray(coords_final, dtype=np.float64),
+        np.asarray(surface_faces, dtype=np.int64),
+        np.asarray(nodal_values, dtype=np.float64),
+        degree=2,
+        subdivisions=1,
+    )
+    tri_plot = np.asarray(tri_plot, dtype=np.int64)
+    tri_vals = np.mean(np.asarray(values, dtype=np.float64)[tri_plot], axis=1)
+    poly = Poly3DCollection(coords_plot[tri_plot], linewidths=0.0, antialiased=False)
+    poly.set_facecolor(matplotlib.colormaps[cmap_name](norm(tri_vals)))
+    poly.set_edgecolor("none")
+    poly.set_rasterized(True)
+    ax.add_collection3d(poly)
+    _apply_plasticity3d_camera(ax, coords_plot)
+    ax.set_axis_off()
+    return tri_vals
+
+
+def _plot_plasticity3d_validation_surface_compare(
+    layout: dict[str, float],
+    *,
+    coords_source: np.ndarray,
+    coords_candidate: np.ndarray,
+    surface_faces: np.ndarray,
+    values_source: np.ndarray,
+    values_candidate: np.ndarray,
+    out_name: str,
+) -> str:
+    plt = configure_paper_matplotlib(font_size=8.0)
+    from matplotlib import cm
+    from matplotlib.colors import Normalize
+
+    values_source = np.asarray(values_source, dtype=np.float64)
+    values_candidate = np.asarray(values_candidate, dtype=np.float64)
+    diff = np.abs(values_candidate - values_source)
+    main_vmax = float(np.quantile(np.concatenate([values_source, values_candidate]), 0.995))
+    diff_vmax = float(max(np.quantile(diff, 0.995), 1.0e-12))
+    main_norm = Normalize(vmin=0.0, vmax=max(main_vmax, 1.0e-12))
+    diff_norm = Normalize(vmin=0.0, vmax=diff_vmax)
+
+    fig = plt.figure(figsize=paper_figure_size(layout, preset="subfigure", height_ratio=0.72))
+    gs = fig.add_gridspec(
+        2,
+        3,
+        height_ratios=[1.0, 0.10],
+        left=0.00,
+        right=0.99,
+        bottom=0.18,
+        top=0.92,
+        wspace=0.02,
+        hspace=0.02,
+    )
+    axes = [fig.add_subplot(gs[0, idx], projection="3d") for idx in range(3)]
+    _surface_compare_panel(
+        axes[0],
+        coords_final=coords_source,
+        surface_faces=surface_faces,
+        nodal_values=values_source,
+        cmap_name="viridis",
+        norm=main_norm,
+    )
+    _surface_compare_panel(
+        axes[1],
+        coords_final=coords_candidate,
+        surface_faces=surface_faces,
+        nodal_values=values_candidate,
+        cmap_name="viridis",
+        norm=main_norm,
+    )
+    _surface_compare_panel(
+        axes[2],
+        coords_final=coords_candidate,
+        surface_faces=surface_faces,
+        nodal_values=diff,
+        cmap_name="cividis",
+        norm=diff_norm,
+    )
+    for ax, title in zip(axes, ("source", "maintained", r"$|\Delta \|u\||$"), strict=True):
+        ax.set_title(title, pad=1.5, fontsize=7.0)
+
+    cax_main = fig.add_subplot(gs[1, :2])
+    cax_diff = fig.add_subplot(gs[1, 2])
+    sm_main = cm.ScalarMappable(norm=main_norm, cmap="viridis")
+    sm_main.set_array(np.concatenate([values_source, values_candidate]))
+    sm_diff = cm.ScalarMappable(norm=diff_norm, cmap="cividis")
+    sm_diff.set_array(diff)
+    cbar_main = fig.colorbar(sm_main, cax=cax_main, orientation="horizontal")
+    cbar_main.set_label(r"$\|u\|$", labelpad=0.2)
+    cbar_diff = fig.colorbar(sm_diff, cax=cax_diff, orientation="horizontal")
+    cbar_diff.set_label(r"abs. diff.", labelpad=0.2)
+    for cbar in (cbar_main, cbar_diff):
+        cbar.ax.tick_params(labelsize=6.0, pad=1.0)
+
+    out = FIGURES_ROOT / out_name
+    save_pdf_and_png(fig, out, png_dpi=260)
+    plt.close(fig)
+    return out.name
+
+
+def generate_plasticity3d_validation_layer1a_boundary(layout: dict[str, float]) -> str:
+    manifest = _read_json(P3D_VALIDATION_ROOT / "validation_manifest.json")
+    layer_cfg = dict(manifest["layer1a"])
+    source_summary = _read_json(REPO_ROOT / str(layer_cfg["source_branch_dir"]) / "branch_summary.json")
+    jax_summary = _read_json(REPO_ROOT / str(layer_cfg["jax_branch_dir"]) / "branch_summary.json")
+    final_jax_step = dict(jax_summary["steps"][-1])
+    jax_state = _load_npz(REPO_ROOT / str(final_jax_step["state_npz"]))
+    source_mat = scipy.io.loadmat(Path(str(source_summary["final_state_mat"])))
+    source_coords_ref = np.asarray(source_mat["coord"], dtype=np.float64).T
+    coords_ref = np.asarray(jax_state["coords_ref"], dtype=np.float64)
+    _, src_to_jax = cKDTree(coords_ref).query(source_coords_ref, k=1)
+    inv = np.empty_like(src_to_jax)
+    inv[src_to_jax] = np.arange(src_to_jax.size, dtype=np.int64)
+
+    source_disp = np.asarray(source_mat["U_final"], dtype=np.float64).T[np.asarray(inv, dtype=np.int64)]
+    source_coords_final = coords_ref + source_disp
+    candidate_disp = np.asarray(jax_state["displacement"], dtype=np.float64)
+    candidate_coords_final = np.asarray(jax_state["coords_final"], dtype=np.float64)
+    return _plot_plasticity3d_validation_surface_compare(
+        layout,
+        coords_source=source_coords_final,
+        coords_candidate=candidate_coords_final,
+        surface_faces=np.asarray(jax_state["surface_faces"], dtype=np.int64),
+        values_source=np.linalg.norm(source_disp, axis=1),
+        values_candidate=np.linalg.norm(candidate_disp, axis=1),
+        out_name="plasticity3d_validation_layer1a_boundary.pdf",
+    )
+
+
+def generate_plasticity3d_validation_umax_curve(layout: dict[str, float]) -> str:
+    plt = configure_paper_matplotlib(font_size=8.0)
+    summary = _read_json(P3D_VALIDATION_ROOT / "comparison_summary.json")
+    rows = [dict(row) for row in dict(summary["layer2"])["rows"]]
+    x = np.asarray([float(row["lambda_value"]) for row in rows], dtype=np.float64)
+    source = np.asarray([float(row["source_u_max"]) for row in rows], dtype=np.float64)
+    maintained = np.asarray([float(row["maintained_u_max"]) for row in rows], dtype=np.float64)
+    rel_l2 = float(dict(summary["layer2"])["umax_curve_relative_l2"])
+
+    fig, ax = plt.subplots(figsize=paper_figure_size(layout, preset="subfigure", height_ratio=0.72))
+    ax.plot(x, source, marker="o", linewidth=1.6, markersize=4.0, color="#111111", label="source")
+    ax.plot(x, maintained, marker="s", linewidth=1.4, markersize=3.8, color="#777777", linestyle="--", label="maintained")
+    ax.set_xlabel(r"$\lambda_{\mathrm{sr}}$")
+    ax.set_ylabel(r"$u_{\max}$")
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False, loc="upper left", handlelength=1.7)
+    ax.text(
+        0.98,
+        0.05,
+        rf"rel. $L^2={rel_l2:.2e}$",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=7.0,
+    )
+    fig.subplots_adjust(left=0.20, right=0.97, bottom=0.23, top=0.95)
+    out = FIGURES_ROOT / "plasticity3d_validation_umax_curve.pdf"
+    save_pdf_and_png(fig, out, png_dpi=260)
+    plt.close(fig)
+    return out.name
+
+
+def generate_plasticity3d_derivative_ablation_bars(layout: dict[str, float]) -> str:
+    plt = configure_paper_matplotlib(font_size=9.0)
+    summary = _read_json(P3D_DERIVATIVE_ABLATION_ROOT / "comparison_summary.json")
+    rows = [dict(row) for row in summary["rows"]]
+    labels = [str(row["display_label"]) for row in rows]
+    x = np.arange(len(rows), dtype=np.float64)
+    colors = ["#4c78a8", "#f58518", "#54a24b"]
+
+    fig, axes = plt.subplots(1, 2, figsize=paper_figure_size(layout, preset="medium", height_ratio=0.42))
+    axes[0].bar(x, [float(row["median_wall_time_s"]) for row in rows], color=colors, width=0.70)
+    axes[0].set_ylabel("Median wall time [s]")
+    axes[1].bar(x, [float(row["median_linear_iterations_total"]) for row in rows], color=colors, width=0.70)
+    axes[1].set_ylabel("Median linear iterations")
+    for ax in axes:
+        ax.set_xticks(x, labels, rotation=18, ha="right")
+        ax.grid(True, axis="y", alpha=0.25)
+        ax.margins(x=0.05)
+    fig.subplots_adjust(left=0.10, right=0.98, bottom=0.29, top=0.94, wspace=0.34)
+    out = FIGURES_ROOT / "plasticity3d_derivative_ablation_bars.pdf"
+    save_pdf_and_png(fig, out, png_dpi=260)
+    plt.close(fig)
+    return out.name
+
+
+def generate_jax_fem_hyperelastic_baseline_energy_history(layout: dict[str, float]) -> str:
+    plt = configure_paper_matplotlib(font_size=8.0)
+    summary = _read_json(JAX_FEM_BASELINE_ROOT / "comparison_summary.json")
+    step_rows = [dict(row) for row in summary["step_rows"]]
+    steps = np.asarray([int(row["step"]) for row in step_rows], dtype=np.int64)
+    repo = np.asarray([float(row["repo_energy"]) for row in step_rows], dtype=np.float64)
+    jax_fem = np.asarray([float(row["jax_fem_energy"]) for row in step_rows], dtype=np.float64)
+    rel_diff = float(dict(summary["final_metrics"])["energy_rel_diff"])
+
+    fig, ax = plt.subplots(figsize=paper_figure_size(layout, preset="subfigure", height_ratio=0.72))
+    ax.plot(steps, repo, marker="o", linewidth=1.6, markersize=4.0, color="#111111", label="repo")
+    ax.plot(steps, jax_fem, marker="s", linewidth=1.4, markersize=3.8, color="#777777", linestyle="--", label="JAX-FEM")
+    ax.set_xlabel("Load step")
+    ax.set_ylabel("Stored energy")
+    ax.set_xticks(steps)
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False, loc="best", handlelength=1.7)
+    ax.text(0.03, 0.95, rf"terminal rel. diff. $={rel_diff:.2e}$", transform=ax.transAxes, ha="left", va="top", fontsize=7.0)
+    fig.subplots_adjust(left=0.20, right=0.97, bottom=0.23, top=0.95)
+    out = FIGURES_ROOT / "jax_fem_hyperelastic_baseline_energy_history.pdf"
+    save_pdf_and_png(fig, out, png_dpi=240)
+    plt.close(fig)
+    return out.name
+
+
+def generate_jax_fem_hyperelastic_baseline_centerline(layout: dict[str, float]) -> str:
+    plt = configure_paper_matplotlib(font_size=8.0)
+    summary = _read_json(JAX_FEM_BASELINE_ROOT / "comparison_summary.json")
+    impls = [dict(row) for row in summary["implementations"]]
+    repo_state = _load_npz(Path(str(impls[0]["state_npz"])))
+    jax_state = _load_npz(Path(str(impls[1]["state_npz"])))
+    coords_ref = np.asarray(repo_state["coords_ref"], dtype=np.float64)
+    repo_profile = centerline_profile(coords_ref, np.asarray(repo_state["displacement"], dtype=np.float64))
+    jax_profile = centerline_profile(coords_ref, np.asarray(jax_state["displacement"], dtype=np.float64))
+    rel_l2 = float(dict(summary["final_metrics"])["centerline_relative_l2"])
+
+    fig, ax = plt.subplots(figsize=paper_figure_size(layout, preset="subfigure", height_ratio=0.72))
+    ax.plot(repo_profile["x"], repo_profile["ux"], marker="o", linewidth=1.6, markersize=4.0, color="#111111", label="repo")
+    ax.plot(jax_profile["x"], jax_profile["ux"], marker="s", linewidth=1.4, markersize=3.8, color="#777777", linestyle="--", label="JAX-FEM")
+    ax.set_xlabel(r"Reference $x$")
+    ax.set_ylabel(r"Centerline $u_x$")
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False, loc="best", handlelength=1.7)
+    ax.text(0.03, 0.95, rf"rel. $L^2={rel_l2:.2e}$", transform=ax.transAxes, ha="left", va="top", fontsize=7.0)
+    fig.subplots_adjust(left=0.20, right=0.97, bottom=0.23, top=0.95)
+    out = FIGURES_ROOT / "jax_fem_hyperelastic_baseline_centerline.pdf"
+    save_pdf_and_png(fig, out, png_dpi=240)
+    plt.close(fig)
+    return out.name
 
 
 def generate_derivative_path_diagram(layout: dict[str, float]) -> str:
@@ -1582,8 +1809,7 @@ def _plot_plasticity_scaling(layout: dict[str, float], rows_by_impl: dict[str, l
         ],
         dtype=np.float64,
     )
-    base_w, base_h = paper_figure_size(layout, preset="medium", height_ratio=0.52)
-    fig, ax = plt.subplots(figsize=(1.08 * base_w, 1.08 * base_h))
+    fig, ax = plt.subplots(figsize=paper_figure_size(layout, preset="medium", height_ratio=0.52))
     ax.plot(ranks, wall, marker="o", color="#1f77b4", linewidth=2.0, label="Measured")
     impl_assets._plot_ideal_reference(ax, ranks, wall, color="#1f77b4")
     ax.set_xscale("log", base=2)
@@ -1734,7 +1960,7 @@ def _plot_plasticity3d_degree_energy_study(layout: dict[str, float]) -> list[str
         show_ylabel: bool = True,
         y_formatter: str = "%.2f",
     ) -> str:
-        fig, ax = plt.subplots(figsize=text_figure_size(layout, width_scale=0.48, height_ratio=0.42))
+        fig, ax = plt.subplots(figsize=paper_figure_size(layout, preset="subfigure", height_ratio=0.42))
         for degree_line in degree_lines:
             style = styles[degree_line]
             selected = [row for row in rows if str(row.get("degree_line", "")) == degree_line]
@@ -1958,36 +2184,11 @@ def main() -> None:
     generated.append(generate_topology_density(layout))
     generated.append(generate_topology_history(layout))
     generated.append(generate_topology_scaling(layout))
-    generated.append(
-        copy_external_figure(
-            P3D_VALIDATION_ROOT / "layer1a" / "assets" / "deformed_boundary_compare.pdf",
-            "plasticity3d_validation_layer1a_boundary.pdf",
-        )
-    )
-    generated.append(
-        copy_external_figure(
-            P3D_VALIDATION_ROOT / "layer2" / "assets" / "umax_curve.pdf",
-            "plasticity3d_validation_umax_curve.pdf",
-        )
-    )
-    generated.append(
-        copy_external_figure(
-            P3D_DERIVATIVE_ABLATION_ROOT / "assets" / "derivative_ablation_bars.pdf",
-            "plasticity3d_derivative_ablation_bars.pdf",
-        )
-    )
-    generated.append(
-        copy_external_figure(
-            JAX_FEM_BASELINE_ROOT / "assets" / "energy_history.pdf",
-            "jax_fem_hyperelastic_baseline_energy_history.pdf",
-        )
-    )
-    generated.append(
-        copy_external_figure(
-            JAX_FEM_BASELINE_ROOT / "assets" / "centerline_profile.pdf",
-            "jax_fem_hyperelastic_baseline_centerline.pdf",
-        )
-    )
+    generated.append(generate_plasticity3d_validation_layer1a_boundary(layout))
+    generated.append(generate_plasticity3d_validation_umax_curve(layout))
+    generated.append(generate_plasticity3d_derivative_ablation_bars(layout))
+    generated.append(generate_jax_fem_hyperelastic_baseline_energy_history(layout))
+    generated.append(generate_jax_fem_hyperelastic_baseline_centerline(layout))
 
     _, local_rows_by_impl = _load_impl_rows(LOCAL_P3D_SUMMARY)
     generated.extend(_plot_plasticity_scaling(layout, local_rows_by_impl))
@@ -1995,6 +2196,36 @@ def main() -> None:
     manifest = {
         "copied_assets": [],
         "generated_assets": generated,
+        "layout": {
+            "textwidth_in": layout["textwidth_in"],
+            "subfigure_width_in": 0.46 * layout["textwidth_in"],
+            "narrow_width_in": 0.72 * layout["textwidth_in"],
+            "medium_width_in": 0.84 * layout["textwidth_in"],
+            "full_width_in": layout["textwidth_in"],
+        },
+        "generated_asset_inputs": {
+            "plasticity3d_validation_layer1a_boundary.pdf": [
+                str(P3D_VALIDATION_ROOT / "validation_manifest.json"),
+                str(P3D_VALIDATION_ROOT / "comparison_summary.json"),
+                "tmp/source_compare/slope_stability_octave_ref/slope_stability/artifacts/compare_direct_branch_lambda1p6/final_source_state.mat",
+                "artifacts/raw_results/debug/p2_direct_branch_lambda1p6_merged/branch_summary.json",
+            ],
+            "plasticity3d_validation_umax_curve.pdf": [
+                str(P3D_VALIDATION_ROOT / "comparison_summary.json"),
+            ],
+            "plasticity3d_derivative_ablation_bars.pdf": [
+                str(P3D_DERIVATIVE_ABLATION_ROOT / "comparison_summary.json"),
+            ],
+            "jax_fem_hyperelastic_baseline_energy_history.pdf": [
+                str(JAX_FEM_BASELINE_ROOT / "comparison_summary.json"),
+            ],
+            "jax_fem_hyperelastic_baseline_centerline.pdf": [
+                str(JAX_FEM_BASELINE_ROOT / "comparison_summary.json"),
+                str(JAX_FEM_BASELINE_ROOT / "parity" / "repo_serial_direct_state.npz"),
+                str(JAX_FEM_BASELINE_ROOT / "parity" / "jax_fem_umfpack_serial_state.npz"),
+            ],
+        },
+        "notes": "All manuscript-included PDFs in this manifest are generated by paper/scripts/generate_paper_figures.py; no external PDFs are copied into paper/figures/generated.",
     }
     write_json(args.out_dir / "manifest.json", manifest)
     print(f"Wrote figure manifest to {args.out_dir / 'manifest.json'}")
