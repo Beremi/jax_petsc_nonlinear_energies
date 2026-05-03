@@ -70,6 +70,9 @@ def test_barbora_env_build_pins_petsc324_stack():
 
     assert 'PETSC_VERSION="${PETSC_VERSION:-3.24.2}"' in build_text
     assert "foss/2022b Python/3.10.8-GCCcore-12.2.0" in build_text
+    assert 'export CC="${BARBORA_PETSC_CC:-mpicc}"' in build_text
+    assert 'CC="$CC"' in build_text
+    assert "--download-cmake" in build_text
     assert "--download-hypre" in build_text
     assert "petsc4py" in build_text
     assert "jax[cpu]" in build_text

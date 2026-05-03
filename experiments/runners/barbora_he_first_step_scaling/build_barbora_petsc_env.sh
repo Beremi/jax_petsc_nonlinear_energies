@@ -134,12 +134,12 @@ python3 -m venv "$VENV"
 # shellcheck source=/dev/null
 source "$VENV/bin/activate"
 
-export CC="${CC:-mpicc}"
-export CXX="${CXX:-mpicxx}"
-export FC="${FC:-mpifort}"
-export MPICC="${MPICC:-mpicc}"
-export MPICXX="${MPICXX:-mpicxx}"
-export MPIFC="${MPIFC:-mpifort}"
+export CC="${BARBORA_PETSC_CC:-mpicc}"
+export CXX="${BARBORA_PETSC_CXX:-mpicxx}"
+export FC="${BARBORA_PETSC_FC:-mpifort}"
+export MPICC="${BARBORA_MPICC:-$CC}"
+export MPICXX="${BARBORA_MPICXX:-$CXX}"
+export MPIFC="${BARBORA_MPIFC:-$FC}"
 export PATH="$PREFIX/bin:$PATH"
 export LD_LIBRARY_PATH="$PREFIX/lib:$PREFIX/lib64:${LD_LIBRARY_PATH:-}"
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PREFIX/lib64/pkgconfig:${PKG_CONFIG_PATH:-}"
@@ -165,6 +165,9 @@ if [[ "${REBUILD_PETSC:-0}" == "1" || ! -x "$PREFIX/lib/petsc/bin/petscversion" 
   log "Configuring PETSc ${PETSC_VERSION}"
   python ./configure \
     PETSC_ARCH="$PETSC_ARCH" \
+    CC="$CC" \
+    CXX="$CXX" \
+    FC="$FC" \
     --prefix="$PREFIX" \
     --COPTFLAGS="-O2" \
     --CXXOPTFLAGS="-O2" \
@@ -175,6 +178,7 @@ if [[ "${REBUILD_PETSC:-0}" == "1" || ! -x "$PREFIX/lib/petsc/bin/petscversion" 
     --with-shared-libraries=1 \
     --with-scalar-type=real \
     --with-precision=double \
+    --download-cmake \
     --download-hypre \
     --download-metis \
     --download-parmetis \

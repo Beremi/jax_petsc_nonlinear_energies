@@ -124,9 +124,14 @@ experiments/runners/barbora_he_first_step_scaling/env_barbora.local.sh
 It loads the Barbora `foss/2022b` toolchain, builds PETSc `3.24.2` into
 `local_env/prefix`, installs `petsc4py 3.24.2`, and installs only the Python
 packages needed by the current JAX+PETSc runner: `numpy`, `scipy`, `h5py`,
-`mpi4py`, and `jax[cpu]`. The default Python pins are `numpy 1.26.4`,
+`mpi4py`, and `jax[cpu]`. PETSc downloads its own CMake during configure
+because the prepared external packages require a newer CMake than Barbora's
+`CMake/3.24.3` module. The default Python pins are `numpy 1.26.4`,
 `scipy 1.11.4`, `h5py 3.10.0`, `mpi4py 4.1.1`, and `jax[cpu] 0.4.30`;
-override `BARBORA_PYTHON_PACKAGES` or `BARBORA_MPI4PY_SPEC` if needed.
+override `BARBORA_PYTHON_PACKAGES` or `BARBORA_MPI4PY_SPEC` if needed. The
+PETSc configure uses `mpicc`, `mpicxx`, and `mpifort` by default; override
+`BARBORA_PETSC_CC`, `BARBORA_PETSC_CXX`, or `BARBORA_PETSC_FC` only if the
+cluster wrapper names change.
 
 After the build finishes, verify the runtime stack:
 
