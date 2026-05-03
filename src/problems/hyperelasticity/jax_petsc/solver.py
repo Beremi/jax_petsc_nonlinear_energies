@@ -5,6 +5,7 @@ Provides ``PROFILE_DEFAULTS`` and ``run(args)`` which runs all load steps.
 CLI entry point (argparse) is in ``solve_HE_dof.py``.
 """
 
+import gc
 import time
 
 import numpy as np
@@ -202,6 +203,12 @@ def run(args):
             assembler_kwargs["hvp_eval_mode"] = str(args.hvp_eval_mode)
         assembler = assembler_cls(**assembler_kwargs)
         assembler.A.setBlockSize(3)
+
+    # The assembler has extracted its local/owned sparsity pattern by here.
+    # Keep the problem arrays in ``params``, but release the replicated mesh
+    # wrapper and global HDF5 adjacency before PETSc/JAX setup grows memory.
+    del mesh_obj, adjacency
+    gc.collect()
 
     setup_time = time.perf_counter() - setup_start
 

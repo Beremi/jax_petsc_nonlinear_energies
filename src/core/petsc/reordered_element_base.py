@@ -385,6 +385,7 @@ def build_global_layout(
     *,
     block_size: int,
     dirichlet_key: str,
+    keep_global_coo: bool = True,
 ) -> GlobalLayout:
     freedofs = np.asarray(params["freedofs"], dtype=np.int64)
     elems = np.asarray(params["elems"], dtype=np.int64)
@@ -396,9 +397,9 @@ def build_global_layout(
         else np.int64
     )
     if "_distributed_iperm" in params:
-        iperm = np.asarray(params["_distributed_iperm"], dtype=np.int64)
+        iperm = np.asarray(params["_distributed_iperm"], dtype=index_dtype)
     else:
-        iperm = inverse_permutation(perm)
+        iperm = np.asarray(inverse_permutation(perm), dtype=index_dtype)
     if "_distributed_lo" in params and "_distributed_hi" in params:
         lo = int(params["_distributed_lo"])
         hi = int(params["_distributed_hi"])
@@ -419,14 +420,22 @@ def build_global_layout(
         total_to_free_reord[mask] = iperm[total_to_free_orig[mask]]
     key_base = np.int64(n_free)
     if adjacency is not None:
-        row_adj, col_adj = adjacency.tocsr().nonzero()
-        coo_rows = iperm[np.asarray(row_adj, dtype=np.int64)]
-        coo_cols = iperm[np.asarray(col_adj, dtype=np.int64)]
+        adjacency_coo = (
+            adjacency
+            if sparse.isspmatrix_coo(adjacency)
+            else adjacency.tocoo(copy=False)
+        )
+        row_adj = np.asarray(adjacency_coo.row, dtype=index_dtype)
+        col_adj = np.asarray(adjacency_coo.col, dtype=index_dtype)
+        coo_rows = np.asarray(iperm[row_adj], dtype=index_dtype)
+        coo_cols = np.asarray(iperm[col_adj], dtype=index_dtype)
         owned_mask = (coo_rows >= lo) & (coo_rows < hi)
         owned_rows = np.asarray(coo_rows[owned_mask], dtype=index_dtype)
         owned_cols = np.asarray(coo_cols[owned_mask], dtype=index_dtype)
-        coo_rows = np.asarray(coo_rows, dtype=index_dtype)
-        coo_cols = np.asarray(coo_cols, dtype=index_dtype)
+        if not bool(keep_global_coo):
+            coo_rows = np.zeros(0, dtype=index_dtype)
+            coo_cols = np.zeros(0, dtype=index_dtype)
+            owned_mask = np.zeros(0, dtype=bool)
 
         owned_keys = (
             np.asarray(owned_rows, dtype=np.int64) * key_base
@@ -764,6 +773,7 @@ class ReorderedElementAssemblerBase:
                 comm,
                 block_size=int(self.block_size),
                 dirichlet_key=self.dirichlet_key,
+                keep_global_coo=self.local_hessian_mode != "element",
             )
         self._setup_timings["global_layout"] = time.perf_counter() - t0
         self._emit_debug_stage("global_layout_ready")
