@@ -95,6 +95,63 @@ Submit the capped two-node test:
 bash experiments/runners/barbora_he_first_step_scaling/submit_two_node_full_rank_10min.sh
 ```
 
+## Build The Barbora PETSc 3.24 Environment
+
+The HyperElasticity element path expects PETSc/petsc4py `3.24.2`; Barbora's
+system `PETSc/3.21.2-foss-2022b` module is too old for the current COO
+preallocation path. Build the experiment environment in the repository clone:
+
+```bash
+# Preview the build job without submitting it.
+DRY_RUN=1 bash experiments/runners/barbora_he_first_step_scaling/submit_build_barbora_petsc_env.sh
+
+# Optional Slurm admission check.
+SBATCH_TEST_ONLY=1 bash experiments/runners/barbora_he_first_step_scaling/submit_build_barbora_petsc_env.sh
+
+# Submit the build job.
+bash experiments/runners/barbora_he_first_step_scaling/submit_build_barbora_petsc_env.sh
+```
+
+The build job creates:
+
+```text
+.venv/
+local_env/prefix/
+local_env/src/
+experiments/runners/barbora_he_first_step_scaling/env_barbora.local.sh
+```
+
+It loads the Barbora `foss/2022b` toolchain, builds PETSc `3.24.2` into
+`local_env/prefix`, installs `petsc4py 3.24.2`, and installs only the Python
+packages needed by the current JAX+PETSc runner: `numpy`, `scipy`, `h5py`,
+`mpi4py`, and `jax[cpu]`. The default Python pins are `numpy 1.26.4`,
+`scipy 1.11.4`, `h5py 3.10.0`, `mpi4py 4.1.1`, and `jax[cpu] 0.4.30`;
+override `BARBORA_PYTHON_PACKAGES` or `BARBORA_MPI4PY_SPEC` if needed.
+
+After the build finishes, verify the runtime stack:
+
+```bash
+export HE_ENV_SETUP="$PWD/experiments/runners/barbora_he_first_step_scaling/env_barbora.local.sh"
+bash experiments/runners/barbora_he_first_step_scaling/check_barbora_env.sh
+```
+
+The check verifies the imports, PETSc/petsc4py version `3.24.2`, and the
+presence of `PETSc.Mat.setPreallocationCOO`.
+
+## One-Node qcpu_exp Smoke Test
+
+After the PETSc `3.24.2` environment is built and checked, this wrapper submits
+one small admission/runtime smoke case: level `4`, one `qcpu_exp` node, full CPU
+rank population (`36` MPI ranks), and a one-minute wall cap.
+
+```bash
+DRY_RUN=1 bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_1min_qexp.sh
+bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_1min_qexp.sh
+```
+
+The wrapper enables single-node OpenMPI shared-memory transport for the smoke
+case only; the multi-node level-5 scripts use the normal Barbora transport.
+
 ## Run Workflow On Barbora
 
 From a full clone of this repository on Barbora:
@@ -102,18 +159,32 @@ From a full clone of this repository on Barbora:
 ```bash
 ssh ber0061@barbora.it4i.cz
 cd /path/to/fenics_nonlinear_energies
+
+# If the earlier PETSc-3.21 smoke debugging left local edits, restore them
+# before pulling the PETSc-3.24 environment scripts.
+git restore src/core/petsc/reordered_element_base.py tests/test_reordered_element_base.py
+rm -f experiments/runners/barbora_he_first_step_scaling/env_barbora.local.sh \
+      experiments/runners/barbora_he_first_step_scaling/env_barbora.smoke_local.sh
+
+# If the old two-node PETSc-3.21 job is still pending, cancel it before it runs.
+# Example old job id from the first attempt:
+# scancel 1970434
+
 git pull --ff-only origin main
 git lfs pull
 
+# Build and check the local PETSc 3.24.2 environment first.
+bash experiments/runners/barbora_he_first_step_scaling/submit_build_barbora_petsc_env.sh
+# wait for the build job to complete, then:
+export HE_ENV_SETUP="$PWD/experiments/runners/barbora_he_first_step_scaling/env_barbora.local.sh"
+bash experiments/runners/barbora_he_first_step_scaling/check_barbora_env.sh
+
 # Confirms the generated mesh recipe still matches checked-in levels 1--4.
-./.venv/bin/python experiments/runners/barbora_he_first_step_scaling/generate_he_uniform_mesh.py \
+"$PYTHON" experiments/runners/barbora_he_first_step_scaling/generate_he_uniform_mesh.py \
   --validate-only
 
-# Optional: define modules/environment in a separate file.
-cp experiments/runners/barbora_he_first_step_scaling/env_barbora.example.sh \
-  experiments/runners/barbora_he_first_step_scaling/env_barbora.local.sh
-# edit env_barbora.local.sh if needed
-export HE_ENV_SETUP="$PWD/experiments/runners/barbora_he_first_step_scaling/env_barbora.local.sh"
+# Quick post-build runtime smoke on qcpu_exp.
+bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_1min_qexp.sh
 
 # Preview commands and write the campaign plan, without submitting.
 DRY_RUN=1 bash experiments/runners/barbora_he_first_step_scaling/submit_matrix.sh

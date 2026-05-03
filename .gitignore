@@ -6,6 +6,8 @@ h5py
 /local_env/
 /.venv/
 /external/HPC_cluster_config/
+/experiments/runners/barbora_he_first_step_scaling/env_barbora.local.sh
+/experiments/runners/barbora_he_first_step_scaling/env_barbora.smoke_local.sh
 /artifacts/
 /artifacts/raw_results/notebook_runs/
 /artifacts/raw_results/topology_reports/
