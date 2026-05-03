@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import os
 import subprocess
 from pathlib import Path
 
@@ -18,6 +20,8 @@ def test_barbora_he_scripts_avoid_disallowed_slurm_options():
         "submit_two_node_full_rank_10min.sh",
         "submit_build_barbora_petsc_env.sh",
         "submit_level4_one_node_1min_qexp.sh",
+        "submit_level4_one_node_socket_scaling.sh",
+        "run_he_first_step_socket_case.sbatch",
     )
 
     assert "--exclusive" not in text
@@ -59,6 +63,64 @@ def test_level4_qexp_smoke_wrapper_is_fixed_shape():
     assert "export PARTITION=qcpu_exp" in text
     assert "export HE_SINGLE_NODE_SMOKE_TRANSPORT=1" in text
     assert 'exec "$SCRIPT_DIR/submit_matrix.sh"' in text
+
+
+def test_level4_socket_scaling_wrapper_shape_and_caps(tmp_path):
+    script = SCRIPT_DIR / "submit_level4_one_node_socket_scaling.sh"
+    out_root = tmp_path / "socket_scaling"
+    env = os.environ.copy()
+    env.update({"DRY_RUN": "1", "OUT_ROOT": str(out_root)})
+
+    subprocess.run(["bash", str(script)], check=True, env=env)
+
+    text = script.read_text(encoding="utf-8")
+    assert 'PARTITION="${PARTITION:-qcpu_exp}"' in text
+    assert 'HE_LEVEL="${HE_LEVEL:-4}"' in text
+    assert 'BACKEND="${BACKEND:-element}"' in text
+    assert 'BASELINE_STEP_S="${BASELINE_STEP_S:-35}"' in text
+    assert 'SLURM_OVERHEAD_S="${SLURM_OVERHEAD_S:-60}"' in text
+    assert "--sockets-per-node" in text
+    assert "--ntasks-per-socket" in text
+    runner_text = (SCRIPT_DIR / "run_he_first_step_socket_case.sbatch").read_text(
+        encoding="utf-8"
+    )
+    assert "--step-time-limit-s" in runner_text
+    assert "--cpu-bind=\"map_cpu:${CPU_MAP}\"" in runner_text
+    assert 'SRUN_PLACEMENT_ARGS=(--sockets-per-node="$ACTIVE_SOCKETS")' in runner_text
+    assert "SRUN_STEP_CPUS_PER_TASK=2" in runner_text
+    assert 'echo "srun_step_cpus_per_task=$SRUN_STEP_CPUS_PER_TASK"' in runner_text
+    assert "--ntasks-per-socket" in runner_text
+
+    plan_rows = list(csv.DictReader((out_root / "campaign_plan.csv").open()))
+    valid = {row["layout"]: row for row in plan_rows if row["status"] == "valid"}
+    invalid = {row["layout"]: row for row in plan_rows if row["status"] == "invalid"}
+
+    assert set(valid) == {"18+18", "18+0", "9+9", "9+0"}
+    assert invalid["36+0"]["reason"] == "invalid_without_oversubscription_on_18_core_socket"
+    assert valid["18+18"]["step_time_limit_s"] == "35"
+    assert valid["18+18"]["slurm_time_limit"] == "00:01:35"
+    assert valid["18+18"]["cpu_map"] == ",".join(str(i) for i in range(36))
+    assert valid["18+0"]["step_time_limit_s"] == "140"
+    assert valid["18+0"]["slurm_time_limit"] == "00:03:20"
+    assert valid["18+0"]["cpu_map"] == ",".join(str(i) for i in range(18))
+    assert valid["9+9"]["step_time_limit_s"] == "70"
+    assert valid["9+9"]["slurm_time_limit"] == "00:02:10"
+    assert valid["9+9"]["cpu_map"] == ",".join(
+        str(i) for i in list(range(9)) + list(range(18, 27))
+    )
+    assert valid["9+0"]["step_time_limit_s"] == "280"
+    assert valid["9+0"]["slurm_time_limit"] == "00:05:40"
+    assert valid["9+0"]["cpu_map"] == ",".join(str(i) for i in range(9))
+
+    commands = [
+        line
+        for line in (out_root / "sbatch_commands.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(commands) == 4
+    assert not any("36+0" in command for command in commands)
+    expected_9p9_map = "0\\,1\\,2\\,3\\,4\\,5\\,6\\,7\\,8\\,18\\,19\\,20\\,21\\,22\\,23\\,24\\,25\\,26"
+    assert any(expected_9p9_map in command for command in commands)
 
 
 def test_barbora_env_build_pins_petsc324_stack():

@@ -36,10 +36,20 @@ def _row(output_json: Path) -> dict:
         "backend": metadata.get("backend", payload.get("case", {}).get("backend", "")),
         "level": metadata.get("he_level", result.get("mesh_level", "")),
         "nodes": metadata.get("nodes", ""),
+        "socket_layout": metadata.get("socket_layout", ""),
+        "socket0_ranks": metadata.get("socket0_ranks", ""),
+        "socket1_ranks": metadata.get("socket1_ranks", ""),
+        "active_sockets": metadata.get("active_sockets", ""),
         "ranks_per_socket": metadata.get("ranks_per_socket", ""),
         "ranks_per_node": metadata.get("ranks_per_node", ""),
         "total_ranks": metadata.get("total_ranks", result.get("metadata", {}).get("nprocs", "")),
         "cpus_per_task": metadata.get("cpus_per_task", ""),
+        "srun_step_cpus_per_task": metadata.get("srun_step_cpus_per_task", ""),
+        "cpu_map": metadata.get("cpu_map", ""),
+        "step_time_limit_s": metadata.get(
+            "step_time_limit_s", step.get("step_time_limit_s", "")
+        ),
+        "slurm_time_limit": metadata.get("slurm_time_limit", ""),
         "total_steps": metadata.get("total_steps", payload.get("case", {}).get("total_steps", "")),
         "completed_steps": len(steps),
         "total_dofs": result.get("total_dofs", ""),
@@ -55,15 +65,47 @@ def _row(output_json: Path) -> dict:
     }
 
 
+def _add_socket_baseline_ratios(rows: list[dict]) -> None:
+    baselines: dict[tuple[str, str], float] = {}
+    for row in rows:
+        if row.get("socket_layout") != "18+18":
+            continue
+        try:
+            baseline = float(row.get("first_step_time_s") or 0.0)
+        except (TypeError, ValueError):
+            baseline = 0.0
+        if baseline > 0.0:
+            baselines[(str(row.get("backend", "")), str(row.get("level", "")))] = baseline
+
+    for row in rows:
+        row["first_step_vs_18p18"] = ""
+        row["speedup_vs_18p18"] = ""
+        baseline = baselines.get((str(row.get("backend", "")), str(row.get("level", ""))))
+        if not baseline:
+            continue
+        try:
+            first_step = float(row.get("first_step_time_s") or 0.0)
+        except (TypeError, ValueError):
+            first_step = 0.0
+        if first_step > 0.0:
+            row["first_step_vs_18p18"] = first_step / baseline
+            row["speedup_vs_18p18"] = baseline / first_step
+
+
 def _write_markdown(path: Path, rows: list[dict]) -> None:
     headers = [
         "backend",
         "level",
         "nodes",
+        "socket_layout",
+        "active_sockets",
         "ranks_per_socket",
         "total_ranks",
+        "step_time_limit_s",
         "total_dofs",
         "first_step_time_s",
+        "first_step_vs_18p18",
+        "speedup_vs_18p18",
         "newton_iters",
         "linear_iters",
         "energy",
@@ -88,11 +130,13 @@ def main() -> None:
     out_root = Path(args.out_root)
     output_paths = sorted(out_root.glob("cases/*/job_*/output.json"))
     rows = [_row(path) for path in output_paths]
+    _add_socket_baseline_ratios(rows)
     rows.sort(
         key=lambda row: (
             str(row["backend"]),
             int(row["level"] or 0),
             int(row["nodes"] or 0),
+            str(row.get("socket_layout") or ""),
             int(row["ranks_per_socket"] or 0),
         )
     )
@@ -108,10 +152,18 @@ def main() -> None:
         "backend",
         "level",
         "nodes",
+        "socket_layout",
+        "socket0_ranks",
+        "socket1_ranks",
+        "active_sockets",
         "ranks_per_socket",
         "ranks_per_node",
         "total_ranks",
         "cpus_per_task",
+        "srun_step_cpus_per_task",
+        "cpu_map",
+        "step_time_limit_s",
+        "slurm_time_limit",
         "total_steps",
         "completed_steps",
         "total_dofs",
@@ -123,6 +175,8 @@ def main() -> None:
         "linear_iters",
         "energy",
         "message",
+        "first_step_vs_18p18",
+        "speedup_vs_18p18",
         "output_json",
     ]
     with csv_path.open("w", newline="", encoding="utf-8") as f:

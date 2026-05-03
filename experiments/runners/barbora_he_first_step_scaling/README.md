@@ -157,6 +157,35 @@ bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_1m
 The wrapper enables single-node OpenMPI shared-memory transport for the smoke
 case only; the multi-node level-5 scripts use the normal Barbora transport.
 
+## One-Node Socket Scaling
+
+`submit_level4_one_node_socket_scaling.sh` submits one independent Slurm job per
+valid level-4 socket-layout case on `qcpu_exp`. Layouts are written as
+`socket0+socket1` MPI ranks. Barbora CPU sockets have 18 cores, so `36+0` is
+recorded as invalid and is not submitted.
+
+| layout | total ranks | active sockets | solver cap [s] | Slurm wall |
+| --- | ---: | ---: | ---: | --- |
+| `18+18` | 36 | 2 | 35 | `00:01:35` |
+| `18+0` | 18 | 1 | 140 | `00:03:20` |
+| `9+9` | 18 | 2 | 70 | `00:02:10` |
+| `9+0` | 9 | 1 | 280 | `00:05:40` |
+
+The solver cap is passed as `--step-time-limit-s`; the Slurm wall limit adds a
+60-second startup/output allowance. The submitter still requests Slurm socket
+placement, and the job step records an explicit `map_cpu` binding so sparse
+balanced layouts such as `9+9` can be audited from `binding.txt`. For sparse
+balanced layouts, the job step may allocate two CPUs per task to expose both
+sockets to Slurm's step cpuset while keeping `OMP_NUM_THREADS=1`,
+`--nproc-threads 1`, and one mapped CPU per MPI rank. Preview, validate, and
+submit:
+
+```bash
+DRY_RUN=1 bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_socket_scaling.sh
+SBATCH_TEST_ONLY=1 bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_socket_scaling.sh
+bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_socket_scaling.sh
+```
+
 ## Run Workflow On Barbora
 
 From a full clone of this repository on Barbora:
@@ -190,6 +219,9 @@ bash experiments/runners/barbora_he_first_step_scaling/check_barbora_env.sh
 
 # Quick post-build runtime smoke on qcpu_exp.
 bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_1min_qexp.sh
+
+# One-node level-4 socket-layout scaling on qcpu_exp.
+bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_socket_scaling.sh
 
 # Preview commands and write the campaign plan, without submitting.
 DRY_RUN=1 bash experiments/runners/barbora_he_first_step_scaling/submit_matrix.sh
