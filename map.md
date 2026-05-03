@@ -44,6 +44,7 @@ Deliberately omitted from the map body: `.git/`, `.venv/`, `.pytest_cache/`, all
 | [`paper/`](paper/) | Publication material | ~173 files including sections, scripts, figures, tables, and build outputs |
 | [`artifacts/`](artifacts/) | Generated outputs | ~7.9k files and ~3k subdirs; raw results, reports, reproduction bundles, temp probes |
 | [`archive/`](archive/) | Historical material | ~2.6k files; superseded docs, old results, scratch, refactor history |
+| `external/HPC_cluster_config/` | Ignored external reference checkout/index | Private HPC cluster configuration bundle; start at `hpc/agent_manifest.yaml` and `FILE_INDEX.md` for IT4I/Slurm guidance |
 | [`local_env/`](local_env/) | Local toolchain/build payload | ~68k files; installed Python/prefix trees and vendored source tarballs |
 | [`tmp/`](tmp/) | Transient working area | ~1.1k files, mostly comparison scratch space |
 | [`scripts/`](scripts/) | Placeholder script area | Currently empty |
@@ -143,6 +144,7 @@ Problem-family mental model:
 | Subtree | What it is |
 | --- | --- |
 | [`experiments/runners/`](experiments/runners/) | Benchmark/campaign launchers, mostly `run_*.py`; use this when you want to execute a maintained or targeted sweep |
+| [`experiments/runners/barbora_he_first_step_scaling/`](experiments/runners/barbora_he_first_step_scaling/) | Barbora HyperElasticity first-step scaling bundle, including level-5 uniform mesh generation and Slurm matrix preparation |
 | [`experiments/analysis/`](experiments/analysis/) | Post-processing and asset generation, mostly `generate_*.py`; use this when you want figures, tables, docs assets, or report material |
 
 Useful naming pattern:
@@ -199,6 +201,7 @@ Useful naming pattern:
 | Check whether behavior is already covered | `tests/test_<family>*.py` plus nearby contract-style tests |
 | Trace where a published figure came from | `docs/assets/` or `paper/figures/` -> matching generator in `experiments/analysis/` or `paper/scripts/` -> raw inputs under `artifacts/raw_results/` |
 | Find historical rationale for a current default | `docs/implementation/` or `docs/reference/` first -> `archive/docs/tuning/` or `archive/docs/refactor/` only if needed |
+| Prepare HPC/IT4I jobs or Slurm scripts | `external/HPC_cluster_config/hpc/agent_manifest.yaml` and `external/HPC_cluster_config/FILE_INDEX.md` -> `hpc/providers/it4i/README.md` -> provider guide, resource summaries, and templates |
 
 ## Mental Model In One Paragraph
 
