@@ -114,6 +114,24 @@ def _build_parser(profile_defaults):
         help="Element mode only: local Hessian assembly kernel "
              "('element', 'sfd_local', or 'sfd_local_vmap')",
     )
+    parser.add_argument(
+        "--problem_build_mode",
+        choices=("rank_local", "replicated"),
+        default=None,
+        help="Element mode only: build rank-local overlap data or the legacy replicated mesh",
+    )
+    parser.add_argument(
+        "--distribution_strategy",
+        choices=("overlap_p2p", "overlap_allgather"),
+        default=None,
+        help="Element mode only: overlap value exchange strategy",
+    )
+    parser.add_argument(
+        "--assembly_backend",
+        choices=("coo_local", "coo"),
+        default=None,
+        help="Element mode only: PETSc COO preallocation/value insertion backend",
+    )
 
     parser.add_argument("--tolf", type=float, default=1e-4, help="Energy-change tolerance")
     parser.add_argument("--tolg", type=float, default=1e-3, help="Gradient-norm tolerance")

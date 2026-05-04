@@ -27,6 +27,9 @@ TOTAL_STEPS="$9"
 BACKEND="${10}"
 SLURM_TIME_LIMIT_REQUESTED="${11:-${SLURM_TIMELIMIT:-}}"
 CPU_MAP="${12:-}"
+HE_PROBLEM_BUILD_MODE="${HE_PROBLEM_BUILD_MODE:-rank_local}"
+HE_DISTRIBUTION_STRATEGY="${HE_DISTRIBUTION_STRATEGY:-overlap_p2p}"
+HE_ASSEMBLY_BACKEND="${HE_ASSEMBLY_BACKEND:-coo_local}"
 
 case "$BACKEND" in
   element|fenics) ;;
@@ -148,6 +151,9 @@ trap cleanup EXIT
   echo "he_level=$HE_LEVEL"
   echo "total_steps=$TOTAL_STEPS"
   echo "backend=$BACKEND"
+  echo "problem_build_mode=$HE_PROBLEM_BUILD_MODE"
+  echo "distribution_strategy=$HE_DISTRIBUTION_STRATEGY"
+  echo "assembly_backend=$HE_ASSEMBLY_BACKEND"
   echo "python=$PYTHON"
   echo "timestamp=$(date --iso-8601=seconds)"
 } | tee "$CASE_DIR/run_metadata.env"
@@ -171,6 +177,9 @@ cat > "$CASE_DIR/case_metadata.json" <<JSON
   "cpu_map": "${CPU_MAP}",
   "step_time_limit_s": ${STEP_TIME_LIMIT_S},
   "slurm_time_limit": "${SLURM_TIME_LIMIT_REQUESTED}",
+  "problem_build_mode": "${HE_PROBLEM_BUILD_MODE}",
+  "distribution_strategy": "${HE_DISTRIBUTION_STRATEGY}",
+  "assembly_backend": "${HE_ASSEMBLY_BACKEND}",
   "out_root": "${OUT_ROOT}"
 }
 JSON
@@ -243,6 +252,9 @@ COMMAND=(
   --nproc-threads 1
   --element-reorder-mode block_xyz
   --local-hessian-mode element
+  --problem-build-mode "$HE_PROBLEM_BUILD_MODE"
+  --distribution-strategy "$HE_DISTRIBUTION_STRATEGY"
+  --assembly-backend "$HE_ASSEMBLY_BACKEND"
   --local-coloring
   --out "$RESULT_JSON"
 )

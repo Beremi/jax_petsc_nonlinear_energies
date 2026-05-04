@@ -39,3 +39,21 @@ def test_he_jax_petsc_direct_cli_accepts_state_out():
     args = parser.parse_args(["--state-out", "sample_state.npz"])
 
     assert args.state_out == "sample_state.npz"
+
+
+def test_he_jax_petsc_direct_cli_accepts_distributed_element_options():
+    parser = solve_HE_dof._build_parser({"reference": {}, "performance": {}})
+    args = parser.parse_args(
+        [
+            "--problem_build_mode",
+            "rank_local",
+            "--distribution_strategy",
+            "overlap_p2p",
+            "--assembly_backend",
+            "coo_local",
+        ]
+    )
+
+    assert args.problem_build_mode == "rank_local"
+    assert args.distribution_strategy == "overlap_p2p"
+    assert args.assembly_backend == "coo_local"

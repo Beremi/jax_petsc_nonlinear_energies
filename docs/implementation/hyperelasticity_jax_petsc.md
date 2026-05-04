@@ -36,7 +36,9 @@ Important retained traits:
 
 - block size `3`
 - block-aware free-DOF ordering (`block_xyz` default)
-- overlap-based owned-row assembly
+- rank-local HDF5 reads for the production element path
+- point-to-point overlap exchange (`overlap_p2p`)
+- local-overlap PETSc COO preallocation (`coo_local`)
 - optional GAMG coordinates
 - rigid-body near-nullspace vectors
 
@@ -49,12 +51,19 @@ The maintained production path is:
 - `--assembly_mode element`
 - `--element_reorder_mode block_xyz`
 - `--local_hessian_mode element`
+- `--problem_build_mode rank_local`
+- `--distribution_strategy overlap_p2p`
+- `--assembly_backend coo_local`
 - `--local_coloring`
 
 This uses exact per-element Hessians, vmapped JAX kernels, and an overlap-based
 assembler that assigns PETSc ownership after the free DOFs have been reordered.
 That ownership choice was the key fix that removed the old large performance gap
 between the FEniCS and JAX+PETSc HE paths.
+
+The legacy replicated mesh build remains available only as an explicit
+regression baseline through `--problem_build_mode replicated`,
+`--distribution_strategy overlap_allgather`, and `--assembly_backend coo`.
 
 ### Baseline mode: sparse finite differences
 

@@ -36,6 +36,8 @@ class HEReorderedElementAssembler(ReorderedElementAssemblerBase):
         reorder_mode="block_xyz",
         use_abs_det=False,
         local_hessian_mode="element",
+        distribution_strategy=None,
+        assembly_backend="coo",
     ):
         self.use_abs_det = bool(use_abs_det)
         super().__init__(
@@ -50,6 +52,8 @@ class HEReorderedElementAssembler(ReorderedElementAssemblerBase):
             pc_options=pc_options,
             reorder_mode=reorder_mode,
             local_hessian_mode=local_hessian_mode,
+            distribution_strategy=distribution_strategy,
+            assembly_backend=assembly_backend,
         )
 
     def _make_local_element_kernels(self):

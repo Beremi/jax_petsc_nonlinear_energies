@@ -27,7 +27,12 @@ from src.problems.hyperelasticity.jax_petsc.parallel_hessian_dof import (
 from src.problems.hyperelasticity.jax_petsc.reordered_element_assembler import (
     HEReorderedElementAssembler,
 )
-from src.problems.hyperelasticity.support.mesh import MeshHyperElasticity3D
+from src.problems.hyperelasticity.support.mesh import (
+    MeshHyperElasticity3D,
+    load_rank_local_hyperelasticity,
+    local_dirichlet_values_from_reference,
+    reordered_free_to_total_dofs,
+)
 from src.problems.hyperelasticity.support.rotate_boundary import (
     rotate_right_face_from_reference,
 )
@@ -69,6 +74,25 @@ def _gather_full_free_original(assembler, vec) -> np.ndarray:
         return np.asarray(assembler.part.reordered_to_original(full_reordered), dtype=np.float64)
     if hasattr(assembler, "_allgather_full_owned") and hasattr(assembler, "layout"):
         full_reordered, _ = assembler._allgather_full_owned(owned)
+        if bool(getattr(assembler, "_formula_layout", False)):
+            grid = assembler.params["_he_grid"]
+            mode = str(assembler.params["_distributed_reorder_mode"])
+            total_dofs = reordered_free_to_total_dofs(
+                np.arange(int(assembler.layout.n_free), dtype=np.int64),
+                grid,
+                mode,
+            )
+            original = np.empty_like(full_reordered)
+            node = total_dofs // 3
+            comp = total_dofs % 3
+            ix = node % int(grid.nx1)
+            plane = node // int(grid.nx1)
+            iy = plane % int(grid.ny1)
+            iz = plane // int(grid.ny1)
+            block = (iz * int(grid.ny1) + iy) * (int(grid.nx) - 1) + (ix - 1)
+            original_index = 3 * block + comp
+            original[original_index] = full_reordered
+            return original
         full_original = np.empty_like(full_reordered)
         full_original[np.asarray(assembler.layout.perm, dtype=np.int64)] = full_reordered
         return full_original
@@ -81,30 +105,37 @@ def _export_state_if_requested(args, assembler, params, vec, step_records, comm)
         return
 
     full_free_original = _gather_full_free_original(assembler, vec)
+    export_params = params
+    if bool(params.get("_distributed_local_data", False)):
+        if comm.rank != 0:
+            return
+        mesh_obj = MeshHyperElasticity3D(args.level)
+        export_params, _, _ = mesh_obj.get_data()
+
     if step_records:
         final_angle = float(step_records[-1]["angle"])
         final_energy = float(step_records[-1]["energy"])
         completed_steps = int(len(step_records))
         full_state = rotate_right_face_from_reference(
-            params["u_0_ref"],
-            params["nodes2coord"],
+            export_params["u_0_ref"],
+            export_params["nodes2coord"],
             final_angle,
-            params["right_nodes"],
+            export_params["right_nodes"],
         )
     else:
         final_energy = None
         completed_steps = 0
-        full_state = np.asarray(params["u_0_ref"], dtype=np.float64).copy()
+        full_state = np.asarray(export_params["u_0_ref"], dtype=np.float64).copy()
 
     full_state = np.asarray(full_state, dtype=np.float64).copy()
-    full_state[np.asarray(params["freedofs"], dtype=np.int64)] = full_free_original
+    full_state[np.asarray(export_params["freedofs"], dtype=np.int64)] = full_free_original
 
     if comm.rank == 0:
         export_hyperelasticity_state_npz(
             state_out,
-            coords_ref=np.asarray(params["nodes2coord"], dtype=np.float64),
+            coords_ref=np.asarray(export_params["nodes2coord"], dtype=np.float64),
             x_final=full_state.reshape((-1, 3)),
-            tetrahedra=np.asarray(params["elems_scalar"], dtype=np.int32),
+            tetrahedra=np.asarray(export_params["elems_scalar"], dtype=np.int32),
             mesh_level=int(args.level),
             total_steps=int(args.total_steps),
             energy=final_energy,
@@ -114,6 +145,42 @@ def _export_state_if_requested(args, assembler, params, vec, step_records, comm)
                 "completed_steps": int(completed_steps),
             },
         )
+
+
+def _summarize_rank_memory(rank_summaries) -> dict[str, float | int | list[dict[str, object]]]:
+    if not rank_summaries:
+        return {"ranks": 0, "rank_summaries": []}
+
+    rows: list[dict[str, object]] = []
+    for rank, summary in enumerate(rank_summaries):
+        row = dict(summary)
+        row["rank"] = int(rank)
+        rows.append(row)
+
+    aggregate_keys = (
+        "local_elements",
+        "local_overlap_dofs",
+        "owned_nnz",
+        "layout_gib",
+        "local_overlap_gib",
+        "scatter_gib",
+        "owned_hessian_values_gib",
+        "petsc_owned_values_gib",
+        "local_backend_gib",
+        "tracked_total_gib",
+    )
+    out: dict[str, float | int | list[dict[str, object]]] = {
+        "ranks": int(len(rows)),
+        "rank_summaries": rows,
+    }
+    for key in aggregate_keys:
+        values = [float(row[key]) for row in rows if key in row]
+        if not values:
+            continue
+        out[f"{key}_min"] = float(min(values))
+        out[f"{key}_max"] = float(max(values))
+        out[f"{key}_total"] = float(sum(values))
+    return out
 
 
 def _resolve_linear_settings(args):
@@ -159,9 +226,53 @@ def run(args):
     local_hessian_mode = str(
         getattr(args, "local_hessian_mode", None) or "element"
     )
+    problem_build_mode = str(
+        getattr(
+            args,
+            "problem_build_mode",
+            "rank_local" if use_element_assembly else "replicated",
+        )
+        or ("rank_local" if use_element_assembly else "replicated")
+    )
+    distribution_strategy = str(
+        getattr(
+            args,
+            "distribution_strategy",
+            "overlap_p2p" if problem_build_mode == "rank_local" else "overlap_allgather",
+        )
+        or ("overlap_p2p" if problem_build_mode == "rank_local" else "overlap_allgather")
+    )
+    assembly_backend = str(
+        getattr(
+            args,
+            "assembly_backend",
+            "coo_local" if problem_build_mode == "rank_local" else "coo",
+        )
+        or ("coo_local" if problem_build_mode == "rank_local" else "coo")
+    )
 
-    mesh_obj = MeshHyperElasticity3D(args.level)
-    params, adjacency, u_init = mesh_obj.get_data()
+    mesh_obj = None
+    if problem_build_mode == "rank_local":
+        if not use_element_assembly:
+            raise ValueError("problem_build_mode='rank_local' is supported only for element assembly")
+        if distribution_strategy != "overlap_p2p":
+            raise ValueError("rank-local HyperElasticity requires distribution_strategy='overlap_p2p'")
+        if assembly_backend != "coo_local":
+            raise ValueError("rank-local HyperElasticity requires assembly_backend='coo_local'")
+        if local_hessian_mode != "element":
+            raise ValueError("rank-local HyperElasticity requires local_hessian_mode='element'")
+        params, adjacency, u_init = load_rank_local_hyperelasticity(
+            int(args.level),
+            comm=comm,
+            reorder_mode=element_reorder_mode,
+        )
+    elif problem_build_mode == "replicated":
+        mesh_obj = MeshHyperElasticity3D(args.level)
+        params, adjacency, u_init = mesh_obj.get_data()
+    else:
+        raise ValueError(
+            f"Unsupported HyperElasticity problem_build_mode={problem_build_mode!r}"
+        )
 
     setup_start = time.perf_counter()
     if use_element_assembly:
@@ -180,6 +291,8 @@ def run(args):
             reorder_mode=element_reorder_mode,
             local_hessian_mode=local_hessian_mode,
             use_abs_det=bool(args.use_abs_det),
+            distribution_strategy=distribution_strategy,
+            assembly_backend=assembly_backend,
         )
     else:
         assembler_cls = (
@@ -211,9 +324,25 @@ def run(args):
     gc.collect()
 
     setup_time = time.perf_counter() - setup_start
+    local_assembler_setup = assembler.setup_summary() if use_element_assembly else {}
+    local_assembler_memory = assembler.memory_summary() if use_element_assembly else {}
+    gathered_assembler_setup = comm.gather(local_assembler_setup, root=0)
+    gathered_assembler_memory = comm.gather(local_assembler_memory, root=0)
+    if rank == 0:
+        assembler_memory_report = _summarize_rank_memory(gathered_assembler_memory)
+        assembler_setup_report = [
+            {"rank": int(idx), **dict(summary)}
+            for idx, summary in enumerate(gathered_assembler_setup or [])
+        ]
+    else:
+        assembler_memory_report = {"ranks": 0, "rank_summaries": []}
+        assembler_setup_report = []
 
-    u_init_reordered = np.asarray(u_init, dtype=np.float64)[assembler.part.perm]
-    x = assembler.create_vec(u_init_reordered)
+    if "_distributed_u_init_owned" in params:
+        x = assembler.create_vec(np.asarray(params["_distributed_u_init_owned"], dtype=np.float64))
+    else:
+        u_init_reordered = np.asarray(u_init, dtype=np.float64)[assembler.part.perm]
+        x = assembler.create_vec(u_init_reordered)
     x_step_start = x.duplicate()
 
     ksp = assembler.ksp
@@ -222,12 +351,17 @@ def run(args):
 
     gamg_coords = None
     if settings["pc_type"] == "gamg" and settings["gamg_set_coordinates"]:
-        gamg_coords = build_gamg_coordinates(
-            assembler.part,
-            params["freedofs"],
-            params["nodes2coord"],
-            block_size=3,
-        )
+        if "_distributed_owned_block_coordinates" in params:
+            gamg_coords = np.asarray(
+                params["_distributed_owned_block_coordinates"], dtype=np.float64
+            )
+        else:
+            gamg_coords = build_gamg_coordinates(
+                assembler.part,
+                params["freedofs"],
+                params["nodes2coord"],
+                block_size=3,
+            )
 
     rotation_per_iter = 4.0 * 2.0 * np.pi / float(args.total_steps)
     ls_primary = (float(args.linesearch_a), float(args.linesearch_b))
@@ -348,12 +482,15 @@ def run(args):
     )
 
     def prepare_step(step_ctx):
-        u0_step = rotate_right_face_from_reference(
-            params["u_0_ref"],
-            params["nodes2coord"],
-            step_ctx.angle,
-            params["right_nodes"],
-        )
+        if "_distributed_local_data" in params:
+            u0_step = local_dirichlet_values_from_reference(params, step_ctx.angle)
+        else:
+            u0_step = rotate_right_face_from_reference(
+                params["u_0_ref"],
+                params["nodes2coord"],
+                step_ctx.angle,
+                params["right_nodes"],
+            )
         assembler.update_dirichlet(u0_step)
         x.copy(x_step_start)
 
@@ -508,7 +645,7 @@ def run(args):
 
     return build_load_step_result(
         mesh_level=int(args.level),
-        total_dofs=int(len(params["u_0"])),
+        total_dofs=int(params.get("_distributed_total_dofs", len(params.get("u_0", [])))),
         setup_time=setup_time,
         total_runtime_start=total_runtime_start,
         steps=step_records,
@@ -543,6 +680,16 @@ def run(args):
                     "distribution_strategy": str(
                         getattr(assembler, "distribution_strategy", "reduced_free_dofs")
                     ),
+                    "assembly_backend": str(getattr(assembler, "assembly_backend", "")),
+                    "assembly_backend_requested": str(
+                        getattr(assembler, "assembly_backend_requested", "")
+                    ),
+                    "problem_build_mode": str(problem_build_mode),
+                    "rank_local_formula_layout": bool(
+                        getattr(assembler, "_formula_layout", False)
+                    ),
+                    "assembler_setup_by_rank": assembler_setup_report,
+                    "assembler_memory_by_rank": assembler_memory_report,
                     "assembler": assembler.__class__.__name__,
                     "trust_subproblem_solver": (
                         "petsc_ksp" if trust_ksp_subproblem else "reduced_2d"

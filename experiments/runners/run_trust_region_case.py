@@ -56,6 +56,21 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=("element", "sfd_local", "sfd_local_vmap"),
         default=None,
     )
+    parser.add_argument(
+        "--problem-build-mode",
+        choices=("rank_local", "replicated"),
+        default=None,
+    )
+    parser.add_argument(
+        "--distribution-strategy",
+        choices=("overlap_p2p", "overlap_allgather"),
+        default=None,
+    )
+    parser.add_argument(
+        "--assembly-backend",
+        choices=("coo_local", "coo"),
+        default=None,
+    )
 
     parser.add_argument("--tolf", type=float, default=1e-4)
     parser.add_argument("--tolg", type=float, default=1e-3)
@@ -306,6 +321,9 @@ def _run_he(args):
         assembly_mode=args.backend,
         element_reorder_mode=args.element_reorder_mode,
         local_hessian_mode=args.local_hessian_mode,
+        problem_build_mode=args.problem_build_mode,
+        distribution_strategy=args.distribution_strategy,
+        assembly_backend=args.assembly_backend,
         tolf=args.tolf,
         tolg=args.tolg,
         tolg_rel=args.tolg_rel,

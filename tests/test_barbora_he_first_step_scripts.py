@@ -65,6 +65,20 @@ def test_level4_qexp_smoke_wrapper_is_fixed_shape():
     assert 'exec "$SCRIPT_DIR/submit_matrix.sh"' in text
 
 
+def test_barbora_he_sbatch_defaults_to_distributed_element_path():
+    text = _script_text(
+        "run_he_first_step_case.sbatch",
+        "run_he_first_step_socket_case.sbatch",
+    )
+
+    assert 'HE_PROBLEM_BUILD_MODE="${HE_PROBLEM_BUILD_MODE:-rank_local}"' in text
+    assert 'HE_DISTRIBUTION_STRATEGY="${HE_DISTRIBUTION_STRATEGY:-overlap_p2p}"' in text
+    assert 'HE_ASSEMBLY_BACKEND="${HE_ASSEMBLY_BACKEND:-coo_local}"' in text
+    assert '--problem-build-mode "$HE_PROBLEM_BUILD_MODE"' in text
+    assert '--distribution-strategy "$HE_DISTRIBUTION_STRATEGY"' in text
+    assert '--assembly-backend "$HE_ASSEMBLY_BACKEND"' in text
+
+
 def test_level4_socket_scaling_wrapper_shape_and_caps(tmp_path):
     script = SCRIPT_DIR / "submit_level4_one_node_socket_scaling.sh"
     out_root = tmp_path / "socket_scaling"

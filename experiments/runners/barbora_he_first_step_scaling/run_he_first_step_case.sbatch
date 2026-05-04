@@ -24,6 +24,9 @@ RANKS_PER_SOCKET="$3"
 RANKS_PER_NODE="$4"
 TOTAL_STEPS="$5"
 BACKEND="$6"
+HE_PROBLEM_BUILD_MODE="${HE_PROBLEM_BUILD_MODE:-rank_local}"
+HE_DISTRIBUTION_STRATEGY="${HE_DISTRIBUTION_STRATEGY:-overlap_p2p}"
+HE_ASSEMBLY_BACKEND="${HE_ASSEMBLY_BACKEND:-coo_local}"
 
 case "$BACKEND" in
   element|fenics) ;;
@@ -98,6 +101,9 @@ trap cleanup EXIT
   echo "he_level=$HE_LEVEL"
   echo "total_steps=$TOTAL_STEPS"
   echo "backend=$BACKEND"
+  echo "problem_build_mode=$HE_PROBLEM_BUILD_MODE"
+  echo "distribution_strategy=$HE_DISTRIBUTION_STRATEGY"
+  echo "assembly_backend=$HE_ASSEMBLY_BACKEND"
   echo "python=$PYTHON"
   echo "timestamp=$(date --iso-8601=seconds)"
 } | tee "$CASE_DIR/run_metadata.env"
@@ -115,6 +121,9 @@ cat > "$CASE_DIR/case_metadata.json" <<JSON
   "ranks_per_node": ${RANKS_PER_NODE},
   "ranks_per_socket": ${RANKS_PER_SOCKET},
   "cpus_per_task": ${SLURM_CPUS_PER_TASK:-1},
+  "problem_build_mode": "${HE_PROBLEM_BUILD_MODE}",
+  "distribution_strategy": "${HE_DISTRIBUTION_STRATEGY}",
+  "assembly_backend": "${HE_ASSEMBLY_BACKEND}",
   "out_root": "${OUT_ROOT}"
 }
 JSON
@@ -186,6 +195,9 @@ COMMAND=(
   --nproc-threads 1
   --element-reorder-mode block_xyz
   --local-hessian-mode element
+  --problem-build-mode "$HE_PROBLEM_BUILD_MODE"
+  --distribution-strategy "$HE_DISTRIBUTION_STRATEGY"
+  --assembly-backend "$HE_ASSEMBLY_BACKEND"
   --local-coloring
   --out "$RESULT_JSON"
 )

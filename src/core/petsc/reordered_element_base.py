@@ -377,6 +377,93 @@ def _owned_pattern_from_local_scalar_elems(
     return rows[order], cols[order]
 
 
+def _owned_local_pattern_from_local_scalar_elems(
+    local_elems_scalar: np.ndarray,
+    *,
+    free_local_by_node: np.ndarray,
+    owned_free_mask: np.ndarray,
+    n_local_free: int,
+    chunk_elems: int = 4096,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build local-index COO pattern from scalar-node element connectivity."""
+    index_dtype = (
+        np.int32 if int(n_local_free) <= int(np.iinfo(np.int32).max) else np.int64
+    )
+    scalar_elems = np.asarray(local_elems_scalar, dtype=np.int64)
+    if scalar_elems.size == 0:
+        empty = np.zeros(0, dtype=index_dtype)
+        return empty, empty
+
+    free_by_node = np.asarray(free_local_by_node, dtype=np.int64)
+    owned_mask = np.asarray(owned_free_mask, dtype=bool)
+    free_comp_mask = free_by_node >= 0
+    owned_comp_mask = np.zeros(free_by_node.shape, dtype=bool)
+    if np.any(free_comp_mask):
+        owned_comp_mask[free_comp_mask] = owned_mask[free_by_node[free_comp_mask]]
+    owned_node_mask = np.any(owned_comp_mask, axis=1)
+    free_node_mask = np.any(free_comp_mask, axis=1)
+    key_base = np.int64(free_by_node.shape[0])
+    scalar_key_batches: list[np.ndarray] = []
+
+    for start in range(0, int(scalar_elems.shape[0]), int(chunk_elems)):
+        block = scalar_elems[start : start + int(chunk_elems)]
+        row_nodes = block[:, :, None]
+        col_nodes = block[:, None, :]
+        valid = owned_node_mask[row_nodes] & free_node_mask[col_nodes]
+        if not np.any(valid):
+            continue
+        row_vals = np.broadcast_to(row_nodes, valid.shape)[valid].astype(
+            np.int64, copy=False
+        )
+        col_vals = np.broadcast_to(col_nodes, valid.shape)[valid].astype(
+            np.int64, copy=False
+        )
+        keys = np.unique(row_vals * key_base + col_vals)
+        if keys.size:
+            scalar_key_batches.append(np.asarray(keys, dtype=np.int64))
+
+    if not scalar_key_batches:
+        empty = np.zeros(0, dtype=index_dtype)
+        return empty, empty
+    scalar_keys = np.unique(np.concatenate(scalar_key_batches, axis=0))
+
+    row_nodes = scalar_keys // key_base
+    col_nodes = scalar_keys % key_base
+    row_dofs = np.asarray(free_by_node[row_nodes], dtype=np.int64)
+    col_dofs = np.asarray(free_by_node[col_nodes], dtype=np.int64)
+    row_valid = np.zeros(row_dofs.shape, dtype=bool)
+    valid_rows = row_dofs >= 0
+    if np.any(valid_rows):
+        row_valid[valid_rows] = owned_mask[row_dofs[valid_rows]]
+    col_valid = col_dofs >= 0
+    total_nnz = int(np.sum(np.sum(row_valid, axis=1) * np.sum(col_valid, axis=1)))
+    rows = np.empty(total_nnz, dtype=index_dtype)
+    cols = np.empty(total_nnz, dtype=index_dtype)
+    offset = 0
+    for row_comp in range(row_dofs.shape[1]):
+        row_mask = row_valid[:, row_comp]
+        if not np.any(row_mask):
+            continue
+        row_vals = np.asarray(row_dofs[:, row_comp], dtype=index_dtype)
+        for col_comp in range(col_dofs.shape[1]):
+            mask = row_mask & col_valid[:, col_comp]
+            if not np.any(mask):
+                continue
+            count = int(np.count_nonzero(mask))
+            rows[offset : offset + count] = row_vals[mask]
+            cols[offset : offset + count] = np.asarray(
+                col_dofs[:, col_comp], dtype=index_dtype
+            )[mask]
+            offset += count
+
+    if offset != total_nnz:
+        rows = rows[:offset]
+        cols = cols[:offset]
+
+    order = np.lexsort((cols, rows))
+    return rows[order], cols[order]
+
+
 def build_global_layout(
     params: dict,
     adjacency: sparse.spmatrix | None,
@@ -388,15 +475,20 @@ def build_global_layout(
     keep_global_coo: bool = True,
 ) -> GlobalLayout:
     freedofs = np.asarray(params["freedofs"], dtype=np.int64)
-    elems = np.asarray(params["elems"], dtype=np.int64)
-    n_total = int(len(np.asarray(params[dirichlet_key], dtype=np.float64)))
-    n_free = int(freedofs.size)
+    formula_layout = bool(params.get("_distributed_formula_layout", False))
+    elems = None if formula_layout else np.asarray(params["elems"], dtype=np.int64)
+    n_total = int(params.get("_distributed_n_total", 0))
+    if n_total <= 0:
+        n_total = int(len(np.asarray(params[dirichlet_key], dtype=np.float64)))
+    n_free = int(params.get("_distributed_n_free", int(freedofs.size)))
     index_dtype = (
         np.int32
         if int(n_free) <= int(np.iinfo(np.int32).max)
         else np.int64
     )
-    if "_distributed_iperm" in params:
+    if formula_layout:
+        iperm = np.zeros(0, dtype=index_dtype)
+    elif "_distributed_iperm" in params:
         iperm = np.asarray(params["_distributed_iperm"], dtype=index_dtype)
     else:
         iperm = np.asarray(inverse_permutation(perm), dtype=index_dtype)
@@ -408,7 +500,9 @@ def build_global_layout(
             n_free, comm.rank, comm.size, block_size=int(block_size)
         )
 
-    if "_distributed_total_to_free_reord" in params:
+    if formula_layout:
+        total_to_free_reord = np.zeros(0, dtype=index_dtype)
+    elif "_distributed_total_to_free_reord" in params:
         total_to_free_reord = np.asarray(
             params["_distributed_total_to_free_reord"], dtype=np.int64
         )
@@ -458,7 +552,10 @@ def build_global_layout(
                 block_size=int(block_size),
             )
     elif "_distributed_local_elem_idx" in params:
-        if "_distributed_owned_rows" in params and "_distributed_owned_cols" in params:
+        if formula_layout and not bool(keep_global_coo):
+            owned_rows = np.zeros(0, dtype=index_dtype)
+            owned_cols = np.zeros(0, dtype=index_dtype)
+        elif "_distributed_owned_rows" in params and "_distributed_owned_cols" in params:
             owned_rows = np.asarray(params["_distributed_owned_rows"], dtype=np.int64)
             owned_cols = np.asarray(params["_distributed_owned_cols"], dtype=np.int64)
         else:
@@ -468,6 +565,11 @@ def build_global_layout(
                     params["_distributed_local_elems_reordered"], dtype=np.int64
                 )
             else:
+                if elems is None:
+                    raise ValueError(
+                        "Distributed formula layouts require "
+                        "'_distributed_local_elems_reordered'"
+                    )
                 local_elems_total = np.asarray(elems[local_elem_idx], dtype=np.int64)
                 local_elems_reordered = np.asarray(
                     total_to_free_reord[local_elems_total], dtype=np.int64
@@ -523,7 +625,7 @@ def build_local_overlap_data(
     elem_data_keys: tuple[str, ...],
     block_size: int,
 ) -> LocalOverlapData:
-    elems = np.asarray(params["elems"], dtype=np.int64)
+    elems = None if "elems" not in params else np.asarray(params["elems"], dtype=np.int64)
     if "_distributed_local_elem_idx" in params:
         local_elem_idx = np.asarray(params["_distributed_local_elem_idx"], dtype=np.int64)
         if "_distributed_local_elems_total" in params:
@@ -531,12 +633,22 @@ def build_local_overlap_data(
                 params["_distributed_local_elems_total"], dtype=np.int64
             )
         else:
+            if elems is None:
+                raise ValueError(
+                    "Distributed local element data requires "
+                    "'_distributed_local_elems_total'"
+                )
             local_elems_total = np.asarray(elems[local_elem_idx], dtype=np.int64)
         if "_distributed_local_elems_reordered" in params:
             elem_reordered_local = np.asarray(
                 params["_distributed_local_elems_reordered"], dtype=np.int64
             )
         else:
+            if layout.total_to_free_reord.size == 0:
+                raise ValueError(
+                    "Distributed formula layouts require "
+                    "'_distributed_local_elems_reordered'"
+                )
             elem_reordered_local = np.asarray(
                 layout.total_to_free_reord[local_elems_total], dtype=np.int64
             )
@@ -569,6 +681,8 @@ def build_local_overlap_data(
             else:
                 local_elem_data[key] = np.asarray(params[key], dtype=np.float64)[local_elem_idx]
     else:
+        if elems is None:
+            raise ValueError("Replicated local-overlap setup requires 'elems'")
         elem_reordered = layout.total_to_free_reord[elems]
         local_mask = np.any(
             (elem_reordered >= layout.lo) & (elem_reordered < layout.hi), axis=1
@@ -578,6 +692,7 @@ def build_local_overlap_data(
             np.float64
         )
         local_elems_total = elems[local_elem_idx]
+        elem_reordered_local = np.asarray(elem_reordered[local_elem_idx], dtype=np.int64)
         local_elem_data = {
             key: np.asarray(params[key], dtype=np.float64)[local_elem_idx]
             for key in elem_data_keys
@@ -598,9 +713,7 @@ def build_local_overlap_data(
         local_elem_idx=local_elem_idx,
         local_total_nodes=np.asarray(local_total_nodes, dtype=np.int64),
         elems_local_np=elems_local_np,
-        elems_reordered=np.asarray(
-            layout.total_to_free_reord[local_elems_total], dtype=np.int64
-        ),
+        elems_reordered=np.asarray(elem_reordered_local, dtype=np.int64),
         local_elem_data=local_elem_data,
         energy_weights=local_energy_weights,
     )
@@ -613,7 +726,9 @@ def build_near_nullspace(
     *,
     kernel_key: str,
 ) -> PETSc.NullSpace:
-    if kernel_key in params:
+    if "_distributed_owned_nullspace" in params:
+        kernel = np.asarray(params["_distributed_owned_nullspace"], dtype=np.float64)
+    elif kernel_key in params:
         kernel = np.asarray(params[kernel_key], dtype=np.float64)
     elif "nodes" in params and "freedofs" in params:
         nodes = np.asarray(params["nodes"], dtype=np.float64)
@@ -686,6 +801,7 @@ class ReorderedElementAssemblerBase:
         self.reorder_mode = str(reorder_mode)
         self.local_hessian_mode = str(local_hessian_mode)
         self.use_near_nullspace = bool(use_near_nullspace)
+        self._formula_layout = bool(params.get("_distributed_formula_layout", False))
         self.reuse_hessian_value_buffers = bool(reuse_hessian_value_buffers)
         self.assembly_backend_requested = str(assembly_backend or "coo")
         self.assembly_backend = str(
@@ -701,6 +817,10 @@ class ReorderedElementAssemblerBase:
         self.distribution_strategy = str(
             distribution_strategy or getattr(self, "distribution_strategy", "overlap_allgather")
         )
+        if self._formula_layout and self.distribution_strategy != "overlap_p2p":
+            raise ValueError(
+                "Formula rank-local layouts require distribution_strategy='overlap_p2p'"
+            )
         self.iter_timings = []
         self._hvp_eval_mode = "element_overlap"
         self._setup_timings: dict[str, float] = {}
@@ -745,7 +865,9 @@ class ReorderedElementAssemblerBase:
         freedofs = np.asarray(params["freedofs"], dtype=np.int64)
         t0 = time.perf_counter()
         with self._petsc_event("reordered:setup_permutation"):
-            if perm_override is None:
+            if self._formula_layout:
+                perm = np.zeros(0, dtype=np.int64)
+            elif perm_override is None:
                 if adjacency is None and self.reorder_mode not in {"none", "block_xyz"}:
                     raise ValueError(
                         "Distributed local element mode currently supports only "
@@ -796,7 +918,14 @@ class ReorderedElementAssemblerBase:
             )
         self._setup_timings["local_overlap"] = time.perf_counter() - t0
         self._emit_debug_stage("local_overlap_ready")
-        self.dirichlet_full = np.asarray(params[self.dirichlet_key], dtype=np.float64)
+        if "_distributed_dirichlet_ref_local" in params:
+            self.dirichlet_full = None
+            self._dirichlet_local_template = np.asarray(
+                params["_distributed_dirichlet_ref_local"], dtype=np.float64
+            )
+        else:
+            self.dirichlet_full = np.asarray(params[self.dirichlet_key], dtype=np.float64)
+            self._dirichlet_local_template = None
 
         t0 = time.perf_counter()
         with self._petsc_event("reordered:distribution_setup"):
@@ -1015,11 +1144,23 @@ class ReorderedElementAssemblerBase:
             dtype=index_dtype,
         )
         if self.assembly_backend == "coo_local":
-            local_rows, local_cols = _owned_local_pattern_from_local_elems(
-                self._local_elems_free,
-                owned_free_mask=self._local_owned_free_mask,
-                n_local_free=int(local_free_global.size),
-            )
+            local_scalar_elems = self.params.get("_distributed_local_elems_scalar_np")
+            if local_scalar_elems is not None and len(self.local_data.local_total_nodes) % int(self.block_size) == 0:
+                local_node_to_free = self._local_free_index_by_total.reshape(
+                    (-1, int(self.block_size))
+                )
+                local_rows, local_cols = _owned_local_pattern_from_local_scalar_elems(
+                    np.asarray(local_scalar_elems, dtype=np.int64),
+                    free_local_by_node=local_node_to_free,
+                    owned_free_mask=self._local_owned_free_mask,
+                    n_local_free=int(local_free_global.size),
+                )
+            else:
+                local_rows, local_cols = _owned_local_pattern_from_local_elems(
+                    self._local_elems_free,
+                    owned_free_mask=self._local_owned_free_mask,
+                    n_local_free=int(local_free_global.size),
+                )
             self._local_coo_rows = np.asarray(local_rows, dtype=index_dtype)
             self._local_coo_cols = np.asarray(local_cols, dtype=index_dtype)
             local_keys = (
@@ -1029,6 +1170,22 @@ class ReorderedElementAssemblerBase:
             local_sort = np.argsort(local_keys, kind="mergesort")
             self._local_owned_keys_sorted = np.asarray(local_keys[local_sort], dtype=np.int64)
             self._local_owned_pos_sorted = np.asarray(local_sort, dtype=index_dtype)
+            self.layout.owned_rows = np.asarray(
+                local_free_global[self._local_coo_rows], dtype=index_dtype
+            )
+            self.layout.owned_cols = np.asarray(
+                local_free_global[self._local_coo_cols], dtype=index_dtype
+            )
+            self.layout.coo_rows = self.layout.owned_rows
+            self.layout.coo_cols = self.layout.owned_cols
+            self.layout.owned_mask = np.ones(self.layout.owned_rows.size, dtype=bool)
+            owned_keys = (
+                np.asarray(self.layout.owned_rows, dtype=np.int64) * np.int64(self.layout.n_free)
+                + np.asarray(self.layout.owned_cols, dtype=np.int64)
+            )
+            owned_sort = np.argsort(owned_keys, kind="mergesort")
+            self.layout.owned_keys_sorted = np.asarray(owned_keys[owned_sort], dtype=np.int64)
+            self.layout.owned_pos_sorted = np.asarray(owned_sort, dtype=index_dtype)
 
     def _create_matrix(self) -> PETSc.Mat:
         mat = PETSc.Mat().create(comm=self.comm)
@@ -1118,6 +1275,7 @@ class ReorderedElementAssemblerBase:
         summary["owned_hessian_values_gib"] = float(summary["owned_hessian_values_bytes"]) / (
             1024.0**3
         )
+        summary["petsc_owned_values_gib"] = float(summary["owned_hessian_values_gib"])
         summary["local_backend_gib"] = float(summary["local_backend_bytes"]) / (1024.0**3)
         summary["tracked_total_gib"] = (
             float(summary["layout_gib"])
@@ -1190,9 +1348,12 @@ class ReorderedElementAssemblerBase:
         )
 
     def _warmup(self):
-        v_local = np.asarray(
-            self.dirichlet_full[self.local_data.local_total_nodes], dtype=np.float64
-        )
+        if self._dirichlet_local_template is not None:
+            v_local = np.asarray(self._dirichlet_local_template, dtype=np.float64)
+        else:
+            v_local = np.asarray(
+                self.dirichlet_full[self.local_data.local_total_nodes], dtype=np.float64
+            )
         self._energy_jit(jnp.asarray(v_local)).block_until_ready()
         self._grad_jit(jnp.asarray(v_local)).block_until_ready()
         self._warmup_hessian(v_local)
@@ -1311,10 +1472,15 @@ class ReorderedElementAssemblerBase:
         self._sfd_hvp_vmap = hvp_vmap
 
     def _setup_distribution_exchange(self) -> None:
-        local_reord = np.asarray(
-            self.layout.total_to_free_reord[self.local_data.local_total_nodes],
-            dtype=np.int64,
-        )
+        if "_distributed_local_total_to_free_reord" in self.params:
+            local_reord = np.asarray(
+                self.params["_distributed_local_total_to_free_reord"], dtype=np.int64
+            )
+        else:
+            local_reord = np.asarray(
+                self.layout.total_to_free_reord[self.local_data.local_total_nodes],
+                dtype=np.int64,
+            )
         free_mask = local_reord >= 0
         self._dist_local_reord = local_reord
         self._dist_free_local_indices = np.where(free_mask)[0].astype(np.int64)
@@ -1322,12 +1488,17 @@ class ReorderedElementAssemblerBase:
             local_reord[self._dist_free_local_indices],
             dtype=np.int64,
         )
-        self._dist_dirichlet_template = np.zeros(len(local_reord), dtype=np.float64)
-        dirichlet_mask = ~free_mask
-        if np.any(dirichlet_mask):
-            self._dist_dirichlet_template[dirichlet_mask] = self.dirichlet_full[
-                self.local_data.local_total_nodes[dirichlet_mask]
-            ]
+        if self._dirichlet_local_template is not None:
+            self._dist_dirichlet_template = np.asarray(
+                self._dirichlet_local_template, dtype=np.float64
+            ).copy()
+        else:
+            self._dist_dirichlet_template = np.zeros(len(local_reord), dtype=np.float64)
+            dirichlet_mask = ~free_mask
+            if np.any(dirichlet_mask):
+                self._dist_dirichlet_template[dirichlet_mask] = self.dirichlet_full[
+                    self.local_data.local_total_nodes[dirichlet_mask]
+                ]
         self._p2p_owned_local = np.zeros(0, dtype=np.int64)
         self._p2p_owned_offset = np.zeros(0, dtype=np.int64)
         self._ghost_recv: dict[int, np.ndarray] = {}
@@ -1457,6 +1628,11 @@ class ReorderedElementAssemblerBase:
                 "build_v_local": 0.0,
                 "exchange_total": float(t_exchange),
             }
+        if self.layout.total_to_free_reord.size == 0:
+            raise RuntimeError(
+                "overlap_allgather requires a global total_to_free map; "
+                "use distribution_strategy='overlap_p2p' for rank-local data"
+            )
         full_reordered, t_comm = self._allgather_full_owned(
             np.asarray(owned_values, dtype=np.float64)
         )
@@ -1473,7 +1649,13 @@ class ReorderedElementAssemblerBase:
 
     def _build_scatter_data(self) -> ScatterData:
         elems_reordered = self.local_data.elems_reordered
-        local_reord = self.layout.total_to_free_reord[self.local_data.local_total_nodes]
+        if hasattr(self, "_dist_local_reord"):
+            local_reord = np.asarray(self._dist_local_reord, dtype=np.int64)
+        else:
+            local_reord = np.asarray(
+                self.layout.total_to_free_reord[self.local_data.local_total_nodes],
+                dtype=np.int64,
+            )
         owned_mask_local = (local_reord >= self.layout.lo) & (local_reord < self.layout.hi)
         owned_rows = local_reord[owned_mask_local] - self.layout.lo
         owned_local_pos = np.full(self.layout.hi - self.layout.lo, -1, dtype=np.int64)
@@ -1558,6 +1740,8 @@ class ReorderedElementAssemblerBase:
         *,
         zero_dirichlet: bool = False,
     ) -> tuple[np.ndarray, float]:
+        if self.layout.total_to_free_reord.size == 0:
+            raise RuntimeError("Cannot build local vector from full map-free layout")
         t0 = time.perf_counter()
         v_local = local_vec_from_full(
             full_reordered,
@@ -1568,7 +1752,20 @@ class ReorderedElementAssemblerBase:
         return v_local, time.perf_counter() - t0
 
     def update_dirichlet(self, u_0_new):
-        self.dirichlet_full = np.asarray(u_0_new, dtype=np.float64)
+        incoming = np.asarray(u_0_new, dtype=np.float64)
+        if self._dirichlet_local_template is not None:
+            if incoming.size == self._dist_local_reord.size:
+                local_values = incoming.reshape(self._dist_local_reord.shape)
+            else:
+                local_values = incoming[self.local_data.local_total_nodes]
+            self._dirichlet_local_template = np.asarray(local_values, dtype=np.float64).copy()
+            dirichlet_mask = self._dist_local_reord < 0
+            if np.any(dirichlet_mask):
+                self._dist_dirichlet_template[dirichlet_mask] = self._dirichlet_local_template[
+                    dirichlet_mask
+                ]
+            return
+        self.dirichlet_full = incoming
         dirichlet_mask = self._dist_local_reord < 0
         if np.any(dirichlet_mask):
             self._dist_dirichlet_template[dirichlet_mask] = self.dirichlet_full[
@@ -1582,7 +1779,15 @@ class ReorderedElementAssemblerBase:
         )
         if full_array_reordered is not None:
             arr = np.asarray(full_array_reordered, dtype=np.float64)
-            vec.array[:] = arr[self.layout.lo : self.layout.hi]
+            if arr.size == self.layout.hi - self.layout.lo:
+                vec.array[:] = arr
+            elif arr.size == self.layout.n_free:
+                vec.array[:] = arr[self.layout.lo : self.layout.hi]
+            else:
+                raise ValueError(
+                    f"Initial vector has length {arr.size}; expected owned "
+                    f"{self.layout.hi - self.layout.lo} or global {self.layout.n_free}"
+                )
             vec.assemble()
         return vec
 

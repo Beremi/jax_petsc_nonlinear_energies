@@ -10,6 +10,10 @@ Default case:
 - load: first load step only (`--steps 1 --start-step 1 --total-steps 24`)
 - nonlinear/linear settings: maintained STCG + GAMG trust-region profile from
   `docs/problems/HyperElasticity.md`
+- problem build: rank-local HDF5 reads with point-to-point overlap exchange
+  (`HE_PROBLEM_BUILD_MODE=rank_local`,
+  `HE_DISTRIBUTION_STRATEGY=overlap_p2p`,
+  `HE_ASSEMBLY_BACKEND=coo_local`)
 - cluster: Barbora CPU, account `fta-26-40`, QoS `3571_6324`, partition `qcpu`
 
 ## Local Sizing Evidence
@@ -62,6 +66,16 @@ controlled by `RPS_LIST`; the script passes `--ntasks-per-socket` to Slurm and
 uses `srun --cpu-bind=cores --distribution=block:block` inside each job.
 
 The scripts intentionally do not use `#SBATCH --exclusive` or `#SBATCH --mem=`.
+
+The element scripts default to the distributed HyperElasticity path. To repeat
+the old replicated baseline for a small diagnostic only, override:
+
+```bash
+HE_PROBLEM_BUILD_MODE=replicated \
+HE_DISTRIBUTION_STRATEGY=overlap_allgather \
+HE_ASSEMBLY_BACKEND=coo \
+bash experiments/runners/barbora_he_first_step_scaling/submit_matrix.sh
+```
 
 ## Two-Node Full-Rank Smoke Test
 
