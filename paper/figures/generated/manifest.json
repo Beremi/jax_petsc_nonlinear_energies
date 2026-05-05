@@ -12,6 +12,9 @@
     "plasticity3d_derivative_ablation_bars.pdf": [
       "/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/plasticity3d_derivative_ablation/comparison_summary.json"
     ],
+    "hyperelasticity_karolina_pmg_scaling.pdf": [
+      "/home/michal/repos/fenics_nonlinear_energies/experiments/analysis/docs_assets/data/hyperelasticity/karolina_l5_pmg_scaling.csv"
+    ],
     "plasticity3d_validation_layer1a_boundary.pdf": [
       "/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/plasticity3d_validation/validation_manifest.json",
       "/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/plasticity3d_validation/comparison_summary.json",
@@ -37,6 +40,7 @@
     "hyperelasticity_state.pdf",
     "hyperelasticity_energy_levels.pdf",
     "hyperelasticity_scaling.pdf",
+    "hyperelasticity_karolina_pmg_scaling.pdf",
     "plasticity2d_state_pair.pdf",
     "plasticity2d_resolution_energy.pdf",
     "plasticity3d_state_pair.pdf",

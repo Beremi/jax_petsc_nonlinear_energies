@@ -38,6 +38,9 @@ HE_PARITY = REPO_ROOT / "experiments/analysis/docs_assets/data/hyperelasticity/p
 PLAPLACE_SCALING = REPO_ROOT / "experiments/analysis/docs_assets/data/plaplace/strong_scaling.csv"
 GL_SCALING = REPO_ROOT / "experiments/analysis/docs_assets/data/ginzburg_landau/strong_scaling.csv"
 HE_SCALING = REPO_ROOT / "experiments/analysis/docs_assets/data/hyperelasticity/strong_scaling.csv"
+HE_KAROLINA_PMG_SCALING = (
+    REPO_ROOT / "experiments/analysis/docs_assets/data/hyperelasticity/karolina_l5_pmg_scaling.csv"
+)
 TOPO_SCALING = REPO_ROOT / "experiments/analysis/docs_assets/data/topology/strong_scaling.csv"
 TOPO_RESOLUTION = REPO_ROOT / "experiments/analysis/docs_assets/data/topology/resolution_objectives.csv"
 
@@ -406,6 +409,10 @@ def main() -> None:
     pl_rows = read_csv_rows(PLAPLACE_SCALING)
     gl_rows = read_csv_rows(GL_SCALING)
     he_rows = read_csv_rows(HE_SCALING)
+    he_karolina_rows = [
+        row for row in read_csv_rows(HE_KAROLINA_PMG_SCALING) if row.get("result", "completed") == "completed"
+    ]
+    he_karolina_rows.sort(key=lambda row: int(row["ranks"]))
     topo_rows = read_csv_rows(TOPO_SCALING)
 
     source8 = read_json(SOURCE_CONT_NP8)
@@ -660,6 +667,34 @@ def main() -> None:
                 fmt_wall_time(float(row["wall_time_s"])),
             ]
             for row in he_showcase
+        ],
+    )
+
+    write_table_star(
+        "hyperelasticity_karolina_pmg_scaling.tex",
+        fill_spec("c c c c c c c c"),
+        [
+            "Ranks",
+            "Nodes",
+            "Coarse groups",
+            "Ranks/group",
+            "Solver total [s]",
+            "First step [s]",
+            "Newton iters",
+            "Krylov iters",
+        ],
+        [
+            [
+                fmt_count(row["ranks"]),
+                fmt_count(row["nodes"]),
+                fmt_count(row["coarse_groups"]),
+                fmt_count(row["coarse_group_ranks"]),
+                fmt_wall_time(float(row["solver_total_s"])),
+                fmt_wall_time(float(row["first_step_s"])),
+                fmt_count(row["newton_iters"]),
+                fmt_count(row["linear_iters"]),
+            ]
+            for row in he_karolina_rows
         ],
     )
 
@@ -968,6 +1003,20 @@ def main() -> None:
             "fairness_gate_passed": bool(fairness["passed"]),
             "energy_rel_diff": float(final_metrics["energy_rel_diff"]),
         },
+        "hyperelasticity_karolina_pmg_scaling": [
+            {
+                "nodes": int(row["nodes"]),
+                "ranks": int(row["ranks"]),
+                "coarse_groups": int(row["coarse_groups"]),
+                "coarse_group_ranks": int(row["coarse_group_ranks"]),
+                "solver_total_s": float(row["solver_total_s"]),
+                "first_step_s": float(row["first_step_s"]),
+                "newton_iters": int(row["newton_iters"]),
+                "linear_iters": int(row["linear_iters"]),
+                "energy": float(row["energy"]),
+            }
+            for row in he_karolina_rows
+        ],
     }
     write_json(REPO_ROOT / "paper/build/tables_summary.json", payload)
 

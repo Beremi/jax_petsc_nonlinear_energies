@@ -80,6 +80,9 @@ GL_SCALING = REPO_ROOT / "experiments/analysis/docs_assets/data/ginzburg_landau/
 HYPER_STATE = REPO_ROOT / "experiments/analysis/docs_assets/data/hyperelasticity/sample_state.npz"
 HYPER_ENERGY = REPO_ROOT / "experiments/analysis/docs_assets/data/hyperelasticity/energy_levels.csv"
 HYPER_SCALING = REPO_ROOT / "experiments/analysis/docs_assets/data/hyperelasticity/strong_scaling.csv"
+HYPER_KAROLINA_PMG_SCALING = (
+    REPO_ROOT / "experiments/analysis/docs_assets/data/hyperelasticity/karolina_l5_pmg_scaling.csv"
+)
 PLASTICITY2D_STATE = REPO_ROOT / "artifacts/raw_results/docs_showcase/mc_plasticity_p4_l5/state.npz"
 PLASTICITY2D_RESULT = REPO_ROOT / "artifacts/raw_results/docs_showcase/mc_plasticity_p4_l5/output.json"
 PLASTICITY2D_L6_SUMMARY = REPO_ROOT / "artifacts/raw_results/slope_stability_l6_p4_deep_p1_tail_scaling_lambda1_maxit20/summary.json"
@@ -633,6 +636,58 @@ def generate_family_scaling_figure(
     fig.subplots_adjust(left=0.12, right=0.98, bottom=0.16, top=0.96)
 
     out = FIGURES_ROOT / out_name
+    save_pdf_and_png(fig, out)
+    plt.close(fig)
+    return out.name
+
+
+def generate_hyperelasticity_karolina_pmg_scaling(layout: dict[str, float]) -> str:
+    plt = configure_paper_matplotlib()
+    rows = [
+        row
+        for row in read_csv_rows(HYPER_KAROLINA_PMG_SCALING)
+        if row.get("result", "completed") == "completed"
+    ]
+    rows.sort(key=lambda row: int(row["ranks"]))
+    ranks = np.asarray([int(row["ranks"]) for row in rows], dtype=np.int64)
+    times = np.asarray([float(row["solver_total_s"]) for row in rows], dtype=np.float64)
+
+    fig, ax = plt.subplots(figsize=paper_figure_size(layout, preset="medium", height_ratio=0.52))
+    ax.plot(
+        ranks,
+        times,
+        marker="o",
+        color="#1f77b4",
+        linestyle="-",
+        linewidth=1.8,
+        label="PMG coarse level $L_2$",
+    )
+    ax.plot(
+        ranks,
+        ideal_strong_scaling(ranks, times),
+        color="#000000",
+        linestyle="--",
+        linewidth=1.1,
+        label=r"ideal $1/r$",
+    )
+    _set_rank_axis(ax, ranks)
+    ax.set_ylabel("Solver total time [s]")
+    ax.margins(x=0.05, y=0.12)
+    for row in rows:
+        nodes = int(row["nodes"])
+        if nodes <= 1:
+            continue
+        ax.annotate(
+            f"{nodes}n",
+            (int(row["ranks"]), float(row["solver_total_s"])),
+            xytext=(4.0, 5.0),
+            textcoords="offset points",
+            fontsize=8.5,
+        )
+    ax.legend(frameon=True, loc="best")
+    fig.subplots_adjust(left=0.12, right=0.98, bottom=0.16, top=0.96)
+
+    out = FIGURES_ROOT / "hyperelasticity_karolina_pmg_scaling.pdf"
     save_pdf_and_png(fig, out)
     plt.close(fig)
     return out.name
@@ -2211,6 +2266,7 @@ def main() -> None:
             out_name="hyperelasticity_scaling.pdf",
         )
     )
+    generated.append(generate_hyperelasticity_karolina_pmg_scaling(layout))
     generated.extend(generate_plasticity2d_figures(layout))
     generated.extend(generate_plasticity3d_state_figures(layout))
     generated.append(generate_plasticity3d_highest_y_slice_comparison(layout))
@@ -2249,6 +2305,9 @@ def main() -> None:
             ],
             "plasticity3d_derivative_ablation_bars.pdf": [
                 str(P3D_DERIVATIVE_ABLATION_ROOT / "comparison_summary.json"),
+            ],
+            "hyperelasticity_karolina_pmg_scaling.pdf": [
+                str(HYPER_KAROLINA_PMG_SCALING),
             ],
             "jax_fem_hyperelastic_baseline_energy_history.pdf": [
                 str(JAX_FEM_BASELINE_ROOT / "comparison_summary.json"),

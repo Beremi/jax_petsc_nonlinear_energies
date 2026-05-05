@@ -65,6 +65,43 @@ scaling for the repository load path.
   \label{fig:hyperelasticity-results}
 \end{figure}
 
+The larger fixed-work Karolina experiment isolates the first level-5 load
+step after the rank-local HyperElasticity implementation. The Karolina CPU
+nodes used here are IT4I standard CPU nodes with two AMD EPYC 7H12 64-core
+processors and 256 GB RAM \citep{it4i-karolina-compute-nodes}; on the tested
+nodes Slurm exposes the 128 cores as eight NUMA domains with 16 cores each.
+The runs use one MPI rank per core, contiguous CPU-ID binding, and local memory
+binding. The mesh is generated procedurally from the uniform beam hierarchy,
+and the element path assembles from rank-local elements with local PETSc COO
+preallocation and point-to-point overlap exchange.
+
+The nonlinear solve is the same trust-region Newton path used for the
+benchmark in \cref{sec:bench-he}. The linear subproblems use STCG with a
+same-hierarchy PMG preconditioner, Chebyshev/Jacobi smoothing, and coarsest
+level $L_2$. The coarse solve is PETSc redundant LU with MUMPS: the partial
+one-node rows use one redundant group over the active ranks, while the
+multi-node rows use one 128-rank redundant group per node.
+\Cref{fig:hyperelasticity-karolina-pmg-scaling,tab:hyperelasticity-karolina-pmg-scaling}
+report the application-reported solver total time, not Slurm elapsed time.
+All rows reach the same first-step energy to the precision shown in the raw
+outputs, with 21 Newton iterations and 43 Krylov iterations.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\PaperFigureMedium]{hyperelasticity_karolina_pmg_scaling.pdf}
+  \caption{Karolina level-5 HyperElasticity first-step fixed-work scaling with
+  the PMG coarse level fixed at $L_2$. Multi-node annotations show node counts.}
+  \label{fig:hyperelasticity-karolina-pmg-scaling}
+\end{figure}
+
+\begin{table}[H]
+  \centering
+  \input{tables/generated/hyperelasticity_karolina_pmg_scaling.tex}
+  \caption{Karolina level-5 HyperElasticity first-step timings used in
+  \cref{fig:hyperelasticity-karolina-pmg-scaling}.}
+  \label{tab:hyperelasticity-karolina-pmg-scaling}
+\end{table}
+
 \subsection{Plasticity2D}
 \label{sec:num-plasticity2d}
 
