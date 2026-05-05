@@ -37,6 +37,7 @@ KSP_MAX_IT="${KSP_MAX_IT:-100}"
 GRAD_STOP_TOL="${GRAD_STOP_TOL:-1e-2}"
 VALIDATE_NODE_CONTIGUITY="${VALIDATE_NODE_CONTIGUITY:-1}"
 KAROLINA_MEM_BIND="${KAROLINA_MEM_BIND:-local}"
+PREPARE_SAME_MESH_HDF5="${PREPARE_SAME_MESH_HDF5:-1}"
 
 build_sequential_cpu_map() {
   local count="$1"
@@ -161,6 +162,7 @@ trap cleanup EXIT
   echo "pmg_coarse_pc_type=redundant"
   echo "pmg_coarse_redundant_number=$REDUNDANT_NUMBER"
   echo "pmg_coarse_factor_solver_type=$FACTOR_SOLVER"
+  echo "prepare_same_mesh_hdf5=$PREPARE_SAME_MESH_HDF5"
   echo "validate_node_contiguity=$VALIDATE_NODE_CONTIGUITY"
   echo "source_root=$SOURCE_ROOT"
   echo "python=$PYTHON"
@@ -188,6 +190,7 @@ cat > "$CASE_DIR/case_metadata.json" <<JSON
   "pmg_coarse_pc_type": "redundant",
   "pmg_coarse_redundant_number": ${REDUNDANT_NUMBER},
   "pmg_coarse_factor_solver_type": "${FACTOR_SOLVER}",
+  "prepare_same_mesh_hdf5": "${PREPARE_SAME_MESH_HDF5}",
   "out_root": "${OUT_ROOT}"
 }
 JSON
@@ -207,6 +210,24 @@ JSON
   echo "=== environment ==="
   env | sort
 } > "$CASE_DIR/environment.txt" 2>&1
+
+if [[ "$PREPARE_SAME_MESH_HDF5" == "1" ]]; then
+  MESH_LOCK="data/meshes/SlopeStability3D/hetero_ssr/.karolina_l1_2_glued_same_mesh.lock"
+  (
+    flock -x 9
+    "$PYTHON" - <<'PY'
+from src.problems.slope_stability_3d.support.mesh import ensure_same_mesh_case_hdf5
+
+for degree in (1, 2, 4):
+    path = ensure_same_mesh_case_hdf5(
+        "hetero_ssr_L1_2",
+        degree,
+        constraint_variant="glued_bottom",
+    )
+    print(f"prepared degree={degree} path={path}", flush=True)
+PY
+  ) 9>"$MESH_LOCK" | tee "$CASE_DIR/mesh_prepare.log"
+fi
 
 RANK_HOST_ORDER="$CASE_DIR/rank_host_order.csv"
 srun "${SRUN_PLACEMENT_ARGS[@]}" \

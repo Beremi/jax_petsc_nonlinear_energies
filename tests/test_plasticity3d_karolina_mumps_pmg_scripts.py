@@ -54,6 +54,10 @@ def test_karolina_plasticity3d_mumps_pmg_runner_shape():
     assert "--distribution=block:block" in text
     assert 'MIX_LOCAL_PMG_MUMPS_REDUNDANT_NUMBER="$REDUNDANT_NUMBER"' in text
     assert 'MIX_LOCAL_PMG_MUMPS_FACTOR_SOLVER="$FACTOR_SOLVER"' in text
+    assert 'PREPARE_SAME_MESH_HDF5="${PREPARE_SAME_MESH_HDF5:-1}"' in text
+    assert "ensure_same_mesh_case_hdf5" in text
+    assert "hetero_ssr_L1_2" in text
+    assert ".karolina_l1_2_glued_same_mesh.lock" in text
     assert "rank_host_order.csv" in text
     assert "rank_node_layout.json" in text
     assert "--assembly-backend local_constitutiveAD" in text
