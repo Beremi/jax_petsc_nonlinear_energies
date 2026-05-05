@@ -101,6 +101,8 @@ except Exception as exc:  # pragma: no cover - exercised in real runs
 DEFAULT_SOURCE_ROOT = REPO_ROOT / "tmp" / "source_compare" / "slope_stability_petsc4py"
 LOCAL_SOLVER_FAST = "local"
 LOCAL_SOLVER_PMG = "local_pmg"
+LOCAL_SOLVER_PMG_MUMPS = "local_pmg_mumps"
+LOCAL_SOLVER_PMG_HECOARSE = "local_pmg_hecoarse"
 LOCAL_SOLVER_PMG_SOURCEFIXED = "local_pmg_sourcefixed"
 LOCAL_SOLVER_SOURCE_DFGMRES = "source_dfgmres"
 _SOURCE_REFINED_MESH_FIELDS = (
@@ -136,6 +138,8 @@ class LocalPMGLinearProfile:
     coarse_backend: str
     coarse_ksp_type: str
     coarse_pc_type: str
+    coarse_redundant_number: int
+    coarse_factor_solver_type: str | None
     coarse_hypre_nodal_coarsen: int
     coarse_hypre_vec_interp_variant: int
     coarse_hypre_strong_threshold: float | None
@@ -176,7 +180,12 @@ def _local_pmg_settings_for_strategy(strategy: str) -> LocalPMGSettings:
 
 
 def _is_local_pmg_solver_backend(solver_backend: str) -> bool:
-    return str(solver_backend) in {LOCAL_SOLVER_PMG, LOCAL_SOLVER_PMG_SOURCEFIXED}
+    return str(solver_backend) in {
+        LOCAL_SOLVER_PMG,
+        LOCAL_SOLVER_PMG_MUMPS,
+        LOCAL_SOLVER_PMG_HECOARSE,
+        LOCAL_SOLVER_PMG_SOURCEFIXED,
+    }
 
 
 def _local_pmg_linear_profile(solver_backend: str) -> LocalPMGLinearProfile:
@@ -196,6 +205,8 @@ def _local_pmg_linear_profile(solver_backend: str) -> LocalPMGLinearProfile:
             coarse_backend="hypre",
             coarse_ksp_type="preonly",
             coarse_pc_type="hypre",
+            coarse_redundant_number=0,
+            coarse_factor_solver_type=None,
             coarse_hypre_nodal_coarsen=-1,
             coarse_hypre_vec_interp_variant=-1,
             coarse_hypre_strong_threshold=0.5,
@@ -209,6 +220,36 @@ def _local_pmg_linear_profile(solver_backend: str) -> LocalPMGLinearProfile:
         pc_type="jacobi",
         steps=5,
     )
+    if name in {LOCAL_SOLVER_PMG_MUMPS, LOCAL_SOLVER_PMG_HECOARSE}:
+        return LocalPMGLinearProfile(
+            level_smoothers={
+                "fine": cfg,
+                "degree2": cfg,
+                "degree1": cfg,
+            },
+            coarse_backend="redundant_lu",
+            coarse_ksp_type="preonly",
+            coarse_pc_type="redundant",
+            coarse_redundant_number=int(
+                os.environ.get(
+                    "MIX_LOCAL_PMG_MUMPS_REDUNDANT_NUMBER",
+                    os.environ.get("MIX_LOCAL_PMG_HE_COARSE_REDUNDANT_NUMBER", "1"),
+                )
+            ),
+            coarse_factor_solver_type=str(
+                os.environ.get(
+                    "MIX_LOCAL_PMG_MUMPS_FACTOR_SOLVER",
+                    os.environ.get("MIX_LOCAL_PMG_HE_COARSE_FACTOR_SOLVER", "mumps"),
+                )
+            ),
+            coarse_hypre_nodal_coarsen=-1,
+            coarse_hypre_vec_interp_variant=-1,
+            coarse_hypre_strong_threshold=None,
+            coarse_hypre_coarsen_type=None,
+            coarse_hypre_max_iter=-1,
+            coarse_hypre_tol=0.0,
+            coarse_hypre_relax_type_all=None,
+        )
     return LocalPMGLinearProfile(
         level_smoothers={
             "fine": cfg,
@@ -218,6 +259,8 @@ def _local_pmg_linear_profile(solver_backend: str) -> LocalPMGLinearProfile:
         coarse_backend="hypre",
         coarse_ksp_type="cg",
         coarse_pc_type="hypre",
+        coarse_redundant_number=0,
+        coarse_factor_solver_type=None,
         coarse_hypre_nodal_coarsen=6,
         coarse_hypre_vec_interp_variant=3,
         coarse_hypre_strong_threshold=0.5,
@@ -1638,6 +1681,8 @@ def _make_local_ksp(
                 coarse_backend=str(profile.coarse_backend),
                 coarse_ksp_type=str(profile.coarse_ksp_type),
                 coarse_pc_type=str(profile.coarse_pc_type),
+                coarse_redundant_number=int(profile.coarse_redundant_number),
+                coarse_factor_solver_type=profile.coarse_factor_solver_type,
                 coarse_hypre_nodal_coarsen=int(profile.coarse_hypre_nodal_coarsen),
                 coarse_hypre_vec_interp_variant=int(profile.coarse_hypre_vec_interp_variant),
                 coarse_hypre_strong_threshold=profile.coarse_hypre_strong_threshold,
@@ -1681,6 +1726,29 @@ def _attach_local_pmg_metadata(
             continue
         if not any(existing is ns for existing in pmg_support.nullspaces_live):
             pmg_support.nullspaces_live.append(ns)
+
+
+def _local_pmg_linear_profile_payload(solver_backend: str) -> dict[str, object]:
+    profile = _local_pmg_linear_profile(str(solver_backend))
+    return {
+        "coarse_backend": str(profile.coarse_backend),
+        "coarse_ksp_type": str(profile.coarse_ksp_type),
+        "coarse_pc_type": str(profile.coarse_pc_type),
+        "coarse_redundant_number": int(profile.coarse_redundant_number),
+        "coarse_factor_solver_type": (
+            ""
+            if profile.coarse_factor_solver_type is None
+            else str(profile.coarse_factor_solver_type)
+        ),
+        "level_smoothers": {
+            str(name): {
+                "ksp_type": str(cfg.ksp_type),
+                "pc_type": str(cfg.pc_type),
+                "steps": int(cfg.steps),
+            }
+            for name, cfg in profile.level_smoothers.items()
+        },
+    }
 
 
 def _local_initial_guess(
@@ -2919,6 +2987,8 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=(
             LOCAL_SOLVER_FAST,
             LOCAL_SOLVER_PMG,
+            LOCAL_SOLVER_PMG_MUMPS,
+            LOCAL_SOLVER_PMG_HECOARSE,
             LOCAL_SOLVER_PMG_SOURCEFIXED,
             LOCAL_SOLVER_SOURCE_DFGMRES,
             "source",
@@ -3029,6 +3099,8 @@ def main() -> None:
             in {
                 LOCAL_SOLVER_FAST,
                 LOCAL_SOLVER_PMG,
+                LOCAL_SOLVER_PMG_MUMPS,
+                LOCAL_SOLVER_PMG_HECOARSE,
                 LOCAL_SOLVER_PMG_SOURCEFIXED,
                 LOCAL_SOLVER_SOURCE_DFGMRES,
             }
@@ -3095,6 +3167,8 @@ def main() -> None:
     if str(args.solver_backend) in {
         LOCAL_SOLVER_FAST,
         LOCAL_SOLVER_PMG,
+        LOCAL_SOLVER_PMG_MUMPS,
+        LOCAL_SOLVER_PMG_HECOARSE,
         LOCAL_SOLVER_PMG_SOURCEFIXED,
     }:
         result = _run_local_solver_backend(
@@ -3186,6 +3260,9 @@ def main() -> None:
     if pmg_support is not None:
         payload["pmg_realized_levels"] = int(pmg_support.realized_levels)
         payload["pmg_pc_backend"] = str(pmg_support.pc_backend)
+        payload["pmg_linear_profile"] = _local_pmg_linear_profile_payload(
+            str(args.solver_backend)
+        )
 
     if PETSc.COMM_WORLD.getRank() == 0:
         output_json.parent.mkdir(parents=True, exist_ok=True)

@@ -196,6 +196,8 @@ def _configure_coarse_solver(
     backend: str,
     ksp_type: str,
     pc_type: str,
+    redundant_number: int = 0,
+    factor_solver_type: str | None = None,
     hypre_nodal_coarsen: int,
     hypre_vec_interp_variant: int,
     hypre_strong_threshold: float | None,
@@ -211,6 +213,8 @@ def _configure_coarse_solver(
     coarse_pc = coarse.getPC()
     if backend_name in {"hypre", "lu", "jacobi"}:
         coarse_pc.setType(str(pc_type))
+        if str(pc_type) == "lu" and str(factor_solver_type or ""):
+            coarse_pc.setFactorSolverType(str(factor_solver_type))
         if str(pc_type) == "hypre":
             _apply_hypre_system_amg_settings(
                 coarse,
@@ -224,6 +228,20 @@ def _configure_coarse_solver(
                 coordinates=coordinates,
                 prefix_tag="mg_coarse",
             )
+        return
+    if backend_name in {"redundant_lu", "redundant"}:
+        coarse_pc.setType("redundant")
+        prefix = _ensure_ksp_options_prefix(coarse, prefix_tag="mg_coarse")
+        opts = PETSc.Options()
+        if int(redundant_number) > 0:
+            opts[f"{prefix}pc_redundant_number"] = int(redundant_number)
+        opts[f"{prefix}redundant_ksp_type"] = "preonly"
+        opts[f"{prefix}redundant_pc_type"] = "lu"
+        if str(factor_solver_type or ""):
+            opts[f"{prefix}redundant_pc_factor_mat_solver_type"] = str(
+                factor_solver_type
+            )
+        coarse.setFromOptions()
         return
     raise ValueError(f"Unsupported MG coarse backend {backend_name!r}")
 
@@ -848,6 +866,8 @@ def configure_pmg(
     coarse_backend: str = "hypre",
     coarse_ksp_type: str | None = None,
     coarse_pc_type: str | None = None,
+    coarse_redundant_number: int = 0,
+    coarse_factor_solver_type: str | None = None,
     coarse_hypre_nodal_coarsen: int = 6,
     coarse_hypre_vec_interp_variant: int = 3,
     coarse_hypre_strong_threshold: float | None = None,
@@ -913,6 +933,8 @@ def configure_pmg(
         backend=str(coarse_backend),
         ksp_type=str(coarse_ksp_type),
         pc_type=str(coarse_pc_type),
+        redundant_number=int(coarse_redundant_number),
+        factor_solver_type=coarse_factor_solver_type,
         hypre_nodal_coarsen=int(coarse_hypre_nodal_coarsen),
         hypre_vec_interp_variant=int(coarse_hypre_vec_interp_variant),
         hypre_strong_threshold=coarse_hypre_strong_threshold,

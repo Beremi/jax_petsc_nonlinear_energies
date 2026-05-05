@@ -417,6 +417,17 @@ Import the source `L1` mesh into same-mesh `P1/P2/P4` HDF5 snapshots:
   --mesh_name hetero_ssr_L1 --degree 4 --overwrite
 ```
 
+Run the prepared `P4(L1_2), lambda = 1.55` MUMPS-coarse PMG campaign. The
+runner uses `local_constitutiveAD` assembly, the `P4 -> P2 -> P1` same-mesh
+PMG hierarchy, Chebyshev/Jacobi smoothing, and a PETSc redundant coarse solve
+with inner LU/MUMPS. Its default `--maxit 5` is a smoke/diagnostic cap; pass a
+larger cap for a full solve.
+
+```bash
+./.venv/bin/python experiments/runners/run_plasticity3d_p4_l1_2_lambda1p55_mumps_pmg_scaling.py \
+  --ranks 8 16 32 --oversubscribe
+```
+
 Run the documented from-scratch `P2(L1), lambda = 1.6` solve with an elastic
 initial guess:
 
