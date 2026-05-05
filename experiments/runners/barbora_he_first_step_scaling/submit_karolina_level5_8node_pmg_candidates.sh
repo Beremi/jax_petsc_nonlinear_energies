@@ -16,7 +16,6 @@ PARTITION="${PARTITION:-qcpu}"
 HE_LEVEL="${HE_LEVEL:-5}"
 NODES="${NODES:-8}"
 RANKS_PER_NODE="${RANKS_PER_NODE:-128}"
-RANKS_PER_SOCKET="${RANKS_PER_SOCKET:-64}"
 TOTAL_STEPS="${TOTAL_STEPS:-24}"
 TIME_LIMIT="${TIME_LIMIT:-00:05:00}"
 STEP_TIME_LIMIT_S="${STEP_TIME_LIMIT_S:-270}"
@@ -85,8 +84,8 @@ if (( NODES != 8 )); then
   echo "This focused campaign is intentionally fixed to 8 nodes; got NODES=$NODES." >&2
   exit 2
 fi
-if (( RANKS_PER_NODE != 128 || RANKS_PER_SOCKET != 64 )); then
-  echo "Karolina full CPU-node population expects RANKS_PER_NODE=128 and RANKS_PER_SOCKET=64." >&2
+if (( RANKS_PER_NODE != 128 )); then
+  echo "Karolina full CPU-node population expects RANKS_PER_NODE=128." >&2
   exit 2
 fi
 
@@ -123,7 +122,6 @@ for candidate in $CANDIDATES; do
     --partition "$PARTITION"
     --nodes "$NODES"
     --ntasks-per-node "$RANKS_PER_NODE"
-    --ntasks-per-socket "$RANKS_PER_SOCKET"
     --cpus-per-task 1
     --distribution block:block
     --time "$TIME_LIMIT"

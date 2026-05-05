@@ -216,7 +216,10 @@ QoS `3571_6328`, and a five-minute Slurm cap.  The runner uses
 `rank_node_layout.json`; by default it fails before the solve if contiguous
 rank groups do not match physical nodes.  This is required for the redundant
 coarse-solve candidates where `pc_redundant_number=8` is intended to mean one
-coarse solve group per Karolina CPU node.
+coarse solve group per Karolina CPU node.  The submitter intentionally does
+not request `--ntasks-per-socket`: Karolina reports CPU nodes to Slurm as
+eight NUMA sockets with 16 cores each, while the full-node policy needed here
+is simply `--ntasks-per-node=128`.
 
 The four prepared candidates are:
 

@@ -159,10 +159,10 @@ def test_karolina_level5_8node_pmg_candidates_are_fixed(tmp_path):
     assert 'HE_LEVEL="${HE_LEVEL:-5}"' in text
     assert 'NODES="${NODES:-8}"' in text
     assert 'RANKS_PER_NODE="${RANKS_PER_NODE:-128}"' in text
-    assert 'RANKS_PER_SOCKET="${RANKS_PER_SOCKET:-64}"' in text
     assert 'TIME_LIMIT="${TIME_LIMIT:-00:05:00}"' in text
     assert 'STEP_TIME_LIMIT_S="${STEP_TIME_LIMIT_S:-270}"' in text
     assert "--distribution block:block" in text
+    assert "--ntasks-per-socket" not in text
 
     plan_rows = list(csv.DictReader((out_root / "campaign_plan.csv").open()))
     assert [row["candidate"] for row in plan_rows] == [
@@ -198,7 +198,7 @@ def test_karolina_level5_8node_pmg_candidates_are_fixed(tmp_path):
     assert len(commands) == 4
     assert all("--nodes 8" in command for command in commands)
     assert all("--ntasks-per-node 128" in command for command in commands)
-    assert all("--ntasks-per-socket 64" in command for command in commands)
+    assert not any("--ntasks-per-socket" in command for command in commands)
     assert all("--distribution block:block" in command for command in commands)
     assert any("pmg_l3_redundant8_mumps" in command for command in commands)
     assert any("superlu_dist" in command for command in commands)
