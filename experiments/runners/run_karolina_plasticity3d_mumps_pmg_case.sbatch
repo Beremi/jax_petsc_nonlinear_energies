@@ -123,11 +123,6 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 2
 fi
 
-if [[ ! -d "$SOURCE_ROOT" ]]; then
-  echo "Source comparison root '$SOURCE_ROOT' is missing." >&2
-  exit 2
-fi
-
 CASE_DIR="${OUT_ROOT}/cases/${CASE_NAME}/job_${SLURM_JOB_ID}"
 mkdir -p "$CASE_DIR"
 
