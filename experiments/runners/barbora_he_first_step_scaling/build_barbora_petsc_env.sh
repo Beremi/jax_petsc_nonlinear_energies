@@ -18,7 +18,7 @@ PREFIX="${PREFIX:-$LOCAL_ENV/prefix}"
 VENV="${VENV:-$REPO_ROOT/.venv}"
 BARBORA_ENV_MODULES="${BARBORA_ENV_MODULES:-foss/2022b Python/3.10.8-GCCcore-12.2.0 CMake/3.24.3-GCCcore-12.2.0 Ninja/1.11.1-GCCcore-12.2.0 git/2.38.1-GCCcore-12.2.0-nodocs cURL/7.86.0-GCCcore-12.2.0}"
 BARBORA_MPI4PY_SPEC="${BARBORA_MPI4PY_SPEC:-mpi4py==4.1.1}"
-BARBORA_PYTHON_PACKAGES="${BARBORA_PYTHON_PACKAGES:-numpy==1.26.4 scipy==1.11.4 h5py==3.10.0 jax[cpu]==0.4.30}"
+BARBORA_PYTHON_PACKAGES="${BARBORA_PYTHON_PACKAGES:-numpy==1.26.4 scipy==1.11.4 h5py==3.10.0 meshio==5.3.5 jax[cpu]==0.4.30}"
 VERIFY_ENV="${VERIFY_ENV:-1}"
 
 if [[ -z "${JOBS:-}" ]]; then

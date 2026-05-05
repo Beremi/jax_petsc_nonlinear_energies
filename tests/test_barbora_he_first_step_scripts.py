@@ -253,8 +253,10 @@ def test_barbora_env_build_pins_petsc324_stack():
     assert "--download-cmake" in build_text
     assert "--download-hypre" in build_text
     assert "petsc4py" in build_text
+    assert "meshio" in build_text
     assert "jax[cpu]" in build_text
     assert "EXPECTED_PETSC_VERSION=\"${EXPECTED_PETSC_VERSION:-3.24.2}\"" in check_text
+    assert "meshio" in check_text
     assert "setPreallocationCOO" in check_text
     assert "local_env/prefix" in env_text
 

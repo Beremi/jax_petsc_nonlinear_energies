@@ -51,7 +51,7 @@ import importlib
 import sys
 
 expected = tuple(int(part) for part in sys.argv[1].split("."))
-required = ["numpy", "scipy", "h5py", "mpi4py", "petsc4py", "jax"]
+required = ["numpy", "scipy", "h5py", "meshio", "mpi4py", "petsc4py", "jax"]
 
 print("== Python import check ==")
 for name in required:
