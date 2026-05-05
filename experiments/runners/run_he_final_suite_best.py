@@ -146,7 +146,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tolf", type=float, default=1e-4)
     parser.add_argument("--tolg", type=float, default=1e-3)
     parser.add_argument("--tolg-rel", type=float, default=1e-3)
-    parser.add_argument("--tolx-rel", type=float, default=1e-3)
+    parser.add_argument("--tolx-rel", type=float, default=1e-4)
     parser.add_argument("--tolx-abs", type=float, default=1e-10)
     parser.add_argument("--maxit", type=int, default=100)
 
@@ -154,11 +154,17 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--linesearch-b", type=float, default=2.0)
     parser.add_argument("--linesearch-tol", type=float, default=1e-1)
     parser.add_argument(
+        "--line-search",
+        choices=("golden_fixed", "armijo"),
+        default="armijo",
+        help="Line search used by the JAX+PETSc element trust-region globalization.",
+    )
+    parser.add_argument(
         "--use-trust-region",
         action=argparse.BooleanOptionalAction,
         default=True,
     )
-    parser.add_argument("--trust-radius-init", type=float, default=0.5)
+    parser.add_argument("--trust-radius-init", type=float, default=1.0)
     parser.add_argument("--trust-radius-min", type=float, default=1e-8)
     parser.add_argument("--trust-radius-max", type=float, default=1e6)
     parser.add_argument("--trust-shrink", type=float, default=0.5)
@@ -461,6 +467,7 @@ def _run_case(repo_root: Path, out_dir: Path, solver: dict, total_steps: int, le
         "--linesearch-a", str(args.linesearch_a),
         "--linesearch-b", str(args.linesearch_b),
         "--linesearch-tol", str(args.linesearch_tol),
+        "--line-search", str(args.line_search),
         "--use-trust-region" if args.use_trust_region else "--no-use-trust-region",
         "--trust-radius-init", str(args.trust_radius_init),
         "--trust-radius-min", str(args.trust_radius_min),

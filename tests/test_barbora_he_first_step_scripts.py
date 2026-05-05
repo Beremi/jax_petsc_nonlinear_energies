@@ -74,9 +74,15 @@ def test_barbora_he_sbatch_defaults_to_distributed_element_path():
     assert 'HE_PROBLEM_BUILD_MODE="${HE_PROBLEM_BUILD_MODE:-rank_local}"' in text
     assert 'HE_DISTRIBUTION_STRATEGY="${HE_DISTRIBUTION_STRATEGY:-overlap_p2p}"' in text
     assert 'HE_ASSEMBLY_BACKEND="${HE_ASSEMBLY_BACKEND:-coo_local}"' in text
+    assert 'HE_LINE_SEARCH="${HE_LINE_SEARCH:-armijo}"' in text
+    assert 'HE_TRUST_RADIUS_INIT="${HE_TRUST_RADIUS_INIT:-1.0}"' in text
+    assert 'HE_TOLX_REL="${HE_TOLX_REL:-1e-4}"' in text
     assert '--problem-build-mode "$HE_PROBLEM_BUILD_MODE"' in text
     assert '--distribution-strategy "$HE_DISTRIBUTION_STRATEGY"' in text
     assert '--assembly-backend "$HE_ASSEMBLY_BACKEND"' in text
+    assert '--line-search "$HE_LINE_SEARCH"' in text
+    assert '--trust-radius-init "$HE_TRUST_RADIUS_INIT"' in text
+    assert '--tolx-rel "$HE_TOLX_REL"' in text
 
 
 def test_level4_socket_scaling_wrapper_shape_and_caps(tmp_path):

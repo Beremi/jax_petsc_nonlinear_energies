@@ -124,6 +124,7 @@ def run_scalar_problem(spec: ScalarProblemDriverSpec, args) -> dict:
         )
 
     linesearch_interval = (float(args.linesearch_a), float(args.linesearch_b))
+    line_search = str(getattr(args, "line_search", "golden_fixed"))
     use_trust_region = bool(getattr(args, "use_trust_region", False))
     trust_radius_init = float(getattr(args, "trust_radius_init", spec.trust_region_defaults.get("trust_radius_init", 1.0)))
     trust_radius_min = float(getattr(args, "trust_radius_min", spec.trust_region_defaults.get("trust_radius_min", 1e-8)))
@@ -283,6 +284,7 @@ def run_scalar_problem(spec: ScalarProblemDriverSpec, args) -> dict:
                 tolg_rel=float(args.tolg_rel),
                 linesearch_tol=float(args.linesearch_tol),
                 linesearch_interval=ls_interval,
+                line_search=line_search,
                 maxit=int(args.maxit),
                 tolx_rel=float(args.tolx_rel),
                 tolx_abs=float(args.tolx_abs),
@@ -401,6 +403,7 @@ def run_scalar_problem(spec: ScalarProblemDriverSpec, args) -> dict:
                 "fail_on_nonfinite": True,
                 "linesearch_interval": [float(args.linesearch_a), float(args.linesearch_b)],
                 "linesearch_tol": float(args.linesearch_tol),
+                "line_search": str(line_search),
                 "trust_region": bool(use_trust_region),
                 "trust_radius_init": float(trust_radius_init),
                 "trust_radius_min": float(trust_radius_min),

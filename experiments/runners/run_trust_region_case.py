@@ -83,6 +83,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--linesearch-a", type=float, default=-0.5)
     parser.add_argument("--linesearch-b", type=float, default=2.0)
     parser.add_argument("--linesearch-tol", type=float, default=1e-3)
+    parser.add_argument(
+        "--line-search",
+        choices=("golden_fixed", "armijo"),
+        default="golden_fixed",
+        help="Line search used inside Newton/trust-region globalization.",
+    )
 
     parser.add_argument(
         "--use-trust-region",
@@ -175,6 +181,7 @@ def _run_plaplace(args):
         linesearch_a=args.linesearch_a,
         linesearch_b=args.linesearch_b,
         linesearch_tol=args.linesearch_tol,
+        line_search=args.line_search,
         retry_on_failure=bool(args.retry_on_failure),
         nproc=args.nproc_threads,
         out="",
@@ -230,6 +237,7 @@ def _run_gl(args):
         linesearch_a=args.linesearch_a,
         linesearch_b=args.linesearch_b,
         linesearch_tol=args.linesearch_tol,
+        line_search=args.line_search,
         retry_on_failure=bool(args.retry_on_failure),
         nproc=args.nproc_threads,
         out="",
@@ -333,6 +341,7 @@ def _run_he(args):
         linesearch_a=args.linesearch_a,
         linesearch_b=args.linesearch_b,
         linesearch_tol=args.linesearch_tol,
+        line_search=args.line_search,
         retry_on_failure=bool(args.retry_on_failure),
         stop_on_fail=False,
         use_abs_det=False,

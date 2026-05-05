@@ -10,6 +10,9 @@ Default case:
 - load: first load step only (`--steps 1 --start-step 1 --total-steps 24`)
 - nonlinear/linear settings: maintained STCG + GAMG trust-region profile from
   `docs/problems/HyperElasticity.md`
+- nonlinear stabilization: Armijo subproblem line search, initial trust
+  radius `1.0`, and stricter step convergence
+  (`HE_LINE_SEARCH=armijo`, `HE_TRUST_RADIUS_INIT=1.0`, `HE_TOLX_REL=1e-4`)
 - problem build: rank-local HDF5 reads with point-to-point overlap exchange
   (`HE_PROBLEM_BUILD_MODE=rank_local`,
   `HE_DISTRIBUTION_STRATEGY=overlap_p2p`,
@@ -74,6 +77,9 @@ the old replicated baseline for a small diagnostic only, override:
 HE_PROBLEM_BUILD_MODE=replicated \
 HE_DISTRIBUTION_STRATEGY=overlap_allgather \
 HE_ASSEMBLY_BACKEND=coo \
+HE_LINE_SEARCH=golden_fixed \
+HE_TRUST_RADIUS_INIT=0.5 \
+HE_TOLX_REL=1e-3 \
 bash experiments/runners/barbora_he_first_step_scaling/submit_matrix.sh
 ```
 
@@ -282,6 +288,9 @@ NODES_LIST="1 2 4"                 # subset node counts
 TIME_LIMIT=00:10:00                # shorter first-step wall limit
 MAX_NODE_HOURS=100                 # guard before submitting
 BACKENDS="element"                 # optionally: "element fenics"
+HE_LINE_SEARCH=golden_fixed        # reproduce the old golden-section setting
+HE_TRUST_RADIUS_INIT=0.5           # reproduce the old conservative radius
+HE_TOLX_REL=1e-3                   # reproduce the old step tolerance
 PYTHON=./.venv/bin/python          # Python executable in the full clone
 CAMPAIGN=my_he_first_step_campaign # stable output folder name
 ```

@@ -27,11 +27,22 @@ BACKEND="$6"
 HE_PROBLEM_BUILD_MODE="${HE_PROBLEM_BUILD_MODE:-rank_local}"
 HE_DISTRIBUTION_STRATEGY="${HE_DISTRIBUTION_STRATEGY:-overlap_p2p}"
 HE_ASSEMBLY_BACKEND="${HE_ASSEMBLY_BACKEND:-coo_local}"
+HE_LINE_SEARCH="${HE_LINE_SEARCH:-armijo}"
+HE_TRUST_RADIUS_INIT="${HE_TRUST_RADIUS_INIT:-1.0}"
+HE_TOLX_REL="${HE_TOLX_REL:-1e-4}"
 
 case "$BACKEND" in
   element|fenics) ;;
   *)
     echo "Unsupported backend '$BACKEND'; expected 'element' or 'fenics'." >&2
+    exit 2
+    ;;
+esac
+
+case "$HE_LINE_SEARCH" in
+  golden_fixed|armijo) ;;
+  *)
+    echo "Unsupported HE_LINE_SEARCH '$HE_LINE_SEARCH'; expected 'golden_fixed' or 'armijo'." >&2
     exit 2
     ;;
 esac
@@ -104,6 +115,9 @@ trap cleanup EXIT
   echo "problem_build_mode=$HE_PROBLEM_BUILD_MODE"
   echo "distribution_strategy=$HE_DISTRIBUTION_STRATEGY"
   echo "assembly_backend=$HE_ASSEMBLY_BACKEND"
+  echo "line_search=$HE_LINE_SEARCH"
+  echo "trust_radius_init=$HE_TRUST_RADIUS_INIT"
+  echo "tolx_rel=$HE_TOLX_REL"
   echo "python=$PYTHON"
   echo "timestamp=$(date --iso-8601=seconds)"
 } | tee "$CASE_DIR/run_metadata.env"
@@ -124,6 +138,9 @@ cat > "$CASE_DIR/case_metadata.json" <<JSON
   "problem_build_mode": "${HE_PROBLEM_BUILD_MODE}",
   "distribution_strategy": "${HE_DISTRIBUTION_STRATEGY}",
   "assembly_backend": "${HE_ASSEMBLY_BACKEND}",
+  "line_search": "${HE_LINE_SEARCH}",
+  "trust_radius_init": "${HE_TRUST_RADIUS_INIT}",
+  "tolx_rel": "${HE_TOLX_REL}",
   "out_root": "${OUT_ROOT}"
 }
 JSON
@@ -173,14 +190,15 @@ COMMAND=(
   --tolf 1e-4
   --tolg 1e-3
   --tolg-rel 1e-3
-  --tolx-rel 1e-3
+  --tolx-rel "$HE_TOLX_REL"
   --tolx-abs 1e-10
   --maxit 100
   --linesearch-a -0.5
   --linesearch-b 2.0
   --linesearch-tol 1e-1
+  --line-search "$HE_LINE_SEARCH"
   --use-trust-region
-  --trust-radius-init 0.5
+  --trust-radius-init "$HE_TRUST_RADIUS_INIT"
   --trust-radius-min 1e-8
   --trust-radius-max 1e6
   --trust-shrink 0.5

@@ -141,6 +141,14 @@ def test_he_summary_contract_keys_are_stable():
     }
 
 
+def test_he_final_suite_defaults_to_stable_element_globalization():
+    args = run_he_final_suite_best._build_parser().parse_args([])
+
+    assert args.line_search == "armijo"
+    assert args.trust_radius_init == 1.0
+    assert args.tolx_rel == 1e-4
+
+
 def test_pure_jax_he_summary_contract_keys_are_stable():
     row = run_he_pure_jax_suite_best._summarize_payload(
         {

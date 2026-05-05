@@ -365,6 +365,7 @@ def run(args):
 
     rotation_per_iter = 4.0 * 2.0 * np.pi / float(args.total_steps)
     ls_primary = (float(args.linesearch_a), float(args.linesearch_b))
+    line_search = str(getattr(args, "line_search", "golden_fixed"))
     use_trust_region = bool(getattr(args, "use_trust_region", False))
     trust_radius_init = float(getattr(args, "trust_radius_init", 1.0))
     trust_radius_min = float(getattr(args, "trust_radius_min", 1e-8))
@@ -519,6 +520,7 @@ def run(args):
             tolg_rel=float(args.tolg_rel),
             linesearch_tol=float(args.linesearch_tol),
             linesearch_interval=attempt.linesearch_interval,
+            line_search=line_search,
             maxit=int(args.maxit),
             tolx_rel=float(args.tolx_rel),
             tolx_abs=float(args.tolx_abs),
@@ -712,6 +714,7 @@ def run(args):
                         float(args.linesearch_b),
                     ],
                     "linesearch_tol": float(args.linesearch_tol),
+                    "line_search": str(line_search),
                     "trust_region": bool(use_trust_region),
                     "trust_radius_init": float(trust_radius_init),
                     "trust_radius_min": float(trust_radius_min),
