@@ -22,6 +22,8 @@ def test_barbora_he_scripts_avoid_disallowed_slurm_options():
         "submit_level4_one_node_1min_qexp.sh",
         "submit_level4_one_node_socket_scaling.sh",
         "run_he_first_step_socket_case.sbatch",
+        "submit_karolina_level5_8node_pmg_candidates.sh",
+        "run_karolina_he_l5_pmg_candidate.sbatch",
     )
 
     assert "--exclusive" not in text
@@ -141,6 +143,83 @@ def test_level4_socket_scaling_wrapper_shape_and_caps(tmp_path):
     assert not any("36+0" in command for command in commands)
     expected_9p9_map = "0\\,1\\,2\\,3\\,4\\,5\\,6\\,7\\,8\\,18\\,19\\,20\\,21\\,22\\,23\\,24\\,25\\,26"
     assert any(expected_9p9_map in command for command in commands)
+
+
+def test_karolina_level5_8node_pmg_candidates_are_fixed(tmp_path):
+    script = SCRIPT_DIR / "submit_karolina_level5_8node_pmg_candidates.sh"
+    out_root = tmp_path / "karolina_pmg"
+    env = os.environ.copy()
+    env.update({"DRY_RUN": "1", "OUT_ROOT": str(out_root)})
+
+    subprocess.run(["bash", str(script)], check=True, env=env)
+
+    text = script.read_text(encoding="utf-8")
+    assert 'PARTITION="${PARTITION:-qcpu}"' in text
+    assert 'QOS="${QOS:-3571_6328}"' in text
+    assert 'HE_LEVEL="${HE_LEVEL:-5}"' in text
+    assert 'NODES="${NODES:-8}"' in text
+    assert 'RANKS_PER_NODE="${RANKS_PER_NODE:-128}"' in text
+    assert 'RANKS_PER_SOCKET="${RANKS_PER_SOCKET:-64}"' in text
+    assert 'TIME_LIMIT="${TIME_LIMIT:-00:05:00}"' in text
+    assert 'STEP_TIME_LIMIT_S="${STEP_TIME_LIMIT_S:-270}"' in text
+    assert "--distribution block:block" in text
+
+    plan_rows = list(csv.DictReader((out_root / "campaign_plan.csv").open()))
+    assert [row["candidate"] for row in plan_rows] == [
+        "pmg_l3_redundant8_mumps",
+        "pmg_l3_redundant8_superlu",
+        "pmg_l3_tel16_mumps",
+        "pmg_l2_redundant8_mumps",
+    ]
+    by_candidate = {row["candidate"]: row for row in plan_rows}
+    for row in plan_rows:
+        assert row["level"] == "5"
+        assert row["nodes"] == "8"
+        assert row["ranks_per_node"] == "128"
+        assert row["total_ranks"] == "1024"
+        assert row["time_limit"] == "00:05:00"
+        assert row["step_time_limit_s"] == "270"
+        assert row["placement"] == "block:block"
+
+    assert by_candidate["pmg_l3_redundant8_mumps"]["coarsest_level"] == "3"
+    assert by_candidate["pmg_l3_redundant8_mumps"]["coarse_pc"] == "redundant"
+    assert by_candidate["pmg_l3_redundant8_mumps"]["redundant_number"] == "8"
+    assert by_candidate["pmg_l3_redundant8_mumps"]["factor_solver"] == "mumps"
+    assert by_candidate["pmg_l3_redundant8_superlu"]["factor_solver"] == "superlu_dist"
+    assert by_candidate["pmg_l3_tel16_mumps"]["coarse_pc"] == "telescope"
+    assert by_candidate["pmg_l3_tel16_mumps"]["telescope_reduction"] == "16"
+    assert by_candidate["pmg_l2_redundant8_mumps"]["coarsest_level"] == "2"
+
+    commands = [
+        line
+        for line in (out_root / "sbatch_commands.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(commands) == 4
+    assert all("--nodes 8" in command for command in commands)
+    assert all("--ntasks-per-node 128" in command for command in commands)
+    assert all("--ntasks-per-socket 64" in command for command in commands)
+    assert all("--distribution block:block" in command for command in commands)
+    assert any("pmg_l3_redundant8_mumps" in command for command in commands)
+    assert any("superlu_dist" in command for command in commands)
+
+
+def test_karolina_pmg_candidate_runner_records_node_layout():
+    text = (SCRIPT_DIR / "run_karolina_he_l5_pmg_candidate.sbatch").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'VALIDATE_NODE_CONTIGUITY="${VALIDATE_NODE_CONTIGUITY:-1}"' in text
+    assert "rank_host_order.csv" in text
+    assert "rank_node_layout.json" in text
+    assert "--distribution=block:block" in text
+    assert 'group_id * ranks_per_node' in text
+    assert '--pc-type mg' in text
+    assert '--he-pmg-coarsest-level "$COARSE_LEVEL"' in text
+    assert '--he-pmg-coarse-pc-type "$COARSE_PC"' in text
+    assert '--he-pmg-coarse-redundant-number "$REDUNDANT_NUMBER"' in text
+    assert '--he-pmg-coarse-telescope-reduction-factor "$TELESCOPE_REDUCTION"' in text
+    assert '--he-pmg-coarse-factor-solver-type "$FACTOR_SOLVER"' in text
 
 
 def test_barbora_env_build_pins_petsc324_stack():

@@ -206,6 +206,40 @@ SBATCH_TEST_ONLY=1 bash experiments/runners/barbora_he_first_step_scaling/submit
 bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_socket_scaling.sh
 ```
 
+## Karolina Level-5 Eight-Node PMG Candidates
+
+`submit_karolina_level5_8node_pmg_candidates.sh` prepares the focused
+Karolina follow-up for the level-5 first step at full CPU-node population:
+`8` nodes, `128` MPI ranks per node, `1024` ranks total, `qcpu`,
+QoS `3571_6328`, and a five-minute Slurm cap.  The runner uses
+`--distribution=block:block`, records `rank_host_order.csv`, and writes
+`rank_node_layout.json`; by default it fails before the solve if contiguous
+rank groups do not match physical nodes.  This is required for the redundant
+coarse-solve candidates where `pc_redundant_number=8` is intended to mean one
+coarse solve group per Karolina CPU node.
+
+The four prepared candidates are:
+
+| candidate | coarsest | coarse solve |
+| --- | ---: | --- |
+| `pmg_l3_redundant8_mumps` | 3 | `PCREDUNDANT`, 8 groups, LU/MUMPS |
+| `pmg_l3_redundant8_superlu` | 3 | `PCREDUNDANT`, 8 groups, LU/SuperLU_DIST |
+| `pmg_l3_tel16_mumps` | 3 | `PCTELESCOPE`, reduction factor 16, LU/MUMPS |
+| `pmg_l2_redundant8_mumps` | 2 | `PCREDUNDANT`, 8 groups, LU/MUMPS |
+
+On Karolina:
+
+```bash
+cd ~/fenics_nonlinear_energies
+git pull --ff-only origin main
+export HE_ENV_SETUP="$PWD/experiments/runners/barbora_he_first_step_scaling/env_barbora.local.sh"
+bash experiments/runners/barbora_he_first_step_scaling/check_barbora_env.sh
+
+DRY_RUN=1 bash experiments/runners/barbora_he_first_step_scaling/submit_karolina_level5_8node_pmg_candidates.sh
+SBATCH_TEST_ONLY=1 bash experiments/runners/barbora_he_first_step_scaling/submit_karolina_level5_8node_pmg_candidates.sh
+bash experiments/runners/barbora_he_first_step_scaling/submit_karolina_level5_8node_pmg_candidates.sh
+```
+
 ## Run Workflow On Barbora
 
 From a full clone of this repository on Barbora:
