@@ -43,6 +43,26 @@ HE_LINE_SEARCH="${HE_LINE_SEARCH:-armijo}"
 HE_TRUST_RADIUS_INIT="${HE_TRUST_RADIUS_INIT:-1.0}"
 HE_TOLX_REL="${HE_TOLX_REL:-1e-4}"
 VALIDATE_NODE_CONTIGUITY="${VALIDATE_NODE_CONTIGUITY:-1}"
+KAROLINA_MEM_BIND="${KAROLINA_MEM_BIND:-local}"
+
+build_sequential_cpu_map() {
+  local count="$1"
+  local map=""
+  local cpu
+
+  if (( count < 1 || count > 128 )); then
+    echo "Karolina CPU map supports 1..128 ranks per node, got ${count}." >&2
+    return 2
+  fi
+
+  for ((cpu = 0; cpu < count; cpu++)); do
+    if [[ -n "$map" ]]; then
+      map+=","
+    fi
+    map+="$cpu"
+  done
+  printf "%s\n" "$map"
+}
 
 case "$COARSE_PC" in
   redundant|telescope|lu|hypre) ;;
@@ -74,6 +94,28 @@ if [[ "${SLURM_CPUS_PER_TASK:-1}" != "1" ]]; then
   echo "This PMG campaign expects --cpus-per-task=1, got ${SLURM_CPUS_PER_TASK}." >&2
   exit 2
 fi
+
+KAROLINA_CPU_MAP="${KAROLINA_CPU_MAP:-$(build_sequential_cpu_map "$RANKS_PER_NODE")}"
+IFS=, read -r -a KAROLINA_CPU_MAP_ENTRIES <<< "$KAROLINA_CPU_MAP"
+if (( ${#KAROLINA_CPU_MAP_ENTRIES[@]} != RANKS_PER_NODE )); then
+  echo "KAROLINA_CPU_MAP has ${#KAROLINA_CPU_MAP_ENTRIES[@]} entries, expected ${RANKS_PER_NODE}." >&2
+  exit 2
+fi
+
+SRUN_PLACEMENT_ARGS=(
+  -n "$TOTAL_RANKS_EXPECTED"
+  --ntasks-per-node="$RANKS_PER_NODE"
+  --cpu-bind="map_cpu:${KAROLINA_CPU_MAP}"
+  --mem-bind="$KAROLINA_MEM_BIND"
+  --distribution=block:block
+)
+SRUN_PLACEMENT_VERBOSE_ARGS=(
+  -n "$TOTAL_RANKS_EXPECTED"
+  --ntasks-per-node="$RANKS_PER_NODE"
+  --cpu-bind="verbose,map_cpu:${KAROLINA_CPU_MAP}"
+  --mem-bind="$KAROLINA_MEM_BIND"
+  --distribution=block:block
+)
 
 export JAX_PLATFORMS="${JAX_PLATFORMS:-cpu}"
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
@@ -128,6 +170,8 @@ trap cleanup EXIT
   echo "total_ranks=$TOTAL_RANKS_EXPECTED"
   echo "ranks_per_node=$RANKS_PER_NODE"
   echo "cpus_per_task=${SLURM_CPUS_PER_TASK:-1}"
+  echo "karolina_cpu_map=$KAROLINA_CPU_MAP"
+  echo "karolina_mem_bind=$KAROLINA_MEM_BIND"
   echo "he_level=$HE_LEVEL"
   echo "total_steps=$TOTAL_STEPS"
   echo "step_time_limit_s=$STEP_TIME_LIMIT_S"
@@ -163,6 +207,8 @@ cat > "$CASE_DIR/case_metadata.json" <<JSON
   "total_ranks": ${TOTAL_RANKS_EXPECTED},
   "ranks_per_node": ${RANKS_PER_NODE},
   "cpus_per_task": ${SLURM_CPUS_PER_TASK:-1},
+  "karolina_cpu_map": "${KAROLINA_CPU_MAP}",
+  "karolina_mem_bind": "${KAROLINA_MEM_BIND}",
   "step_time_limit_s": ${STEP_TIME_LIMIT_S},
   "wall_time": "${WALL_TIME}",
   "problem_build_mode": "${HE_PROBLEM_BUILD_MODE}",
@@ -198,12 +244,12 @@ JSON
 } > "$CASE_DIR/environment.txt" 2>&1
 
 RANK_HOST_ORDER="$CASE_DIR/rank_host_order.csv"
-srun -n "$TOTAL_RANKS_EXPECTED" --cpu-bind=cores --distribution=block:block \
+srun "${SRUN_PLACEMENT_ARGS[@]}" \
   bash -lc 'printf "%06d,%06d,%s\n" "${SLURM_PROCID}" "${SLURM_LOCALID}" "$(hostname)"' \
   | sort > "$RANK_HOST_ORDER"
 awk -F, '{print $3}' "$RANK_HOST_ORDER" | sort | uniq -c > "$CASE_DIR/rank_hosts.txt"
 
-srun -n "$TOTAL_RANKS_EXPECTED" --cpu-bind=verbose --distribution=block:block \
+srun "${SRUN_PLACEMENT_VERBOSE_ARGS[@]}" \
   bash -lc 'echo "rank=${SLURM_PROCID} local=${SLURM_LOCALID} host=$(hostname) cpuset=$(taskset -pc $$)"' \
   > "$CASE_DIR/binding.txt" 2>&1 || true
 
@@ -345,8 +391,8 @@ if [[ "$FACTOR_SOLVER" != "none" && -n "$FACTOR_SOLVER" ]]; then
   COMMAND+=(--he-pmg-coarse-factor-solver-type "$FACTOR_SOLVER")
 fi
 
-printf "%q " srun -n "$TOTAL_RANKS_EXPECTED" --cpu-bind=cores --distribution=block:block "${COMMAND[@]}" \
+printf "%q " srun "${SRUN_PLACEMENT_ARGS[@]}" "${COMMAND[@]}" \
   > "$CASE_DIR/command.txt"
 printf "\n" >> "$CASE_DIR/command.txt"
 
-srun -n "$TOTAL_RANKS_EXPECTED" --cpu-bind=cores --distribution=block:block "${COMMAND[@]}"
+srun "${SRUN_PLACEMENT_ARGS[@]}" "${COMMAND[@]}"

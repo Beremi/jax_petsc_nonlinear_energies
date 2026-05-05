@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -27,7 +28,8 @@ def test_barbora_he_scripts_avoid_disallowed_slurm_options():
     )
 
     assert "--exclusive" not in text
-    assert "--mem" not in text
+    assert re.search(r"--mem(=|\s)", text) is None
+    assert "--mem-per-cpu" not in text
 
 
 def test_barbora_he_default_rank_density_matrix_is_documented():
@@ -184,6 +186,8 @@ def test_karolina_level5_8node_pmg_candidates_are_fixed(tmp_path):
         assert row["time_limit"] == "00:05:00"
         assert row["step_time_limit_s"] == "270"
         assert row["placement"] == "block:block"
+        assert row["cpu_map"] == "map_cpu:0-127"
+        assert row["mem_bind"] == "local"
 
     assert by_candidate["pmg_l3_redundant8_mumps"]["coarsest_level"] == "3"
     assert by_candidate["pmg_l3_redundant8_mumps"]["coarse_pc"] == "redundant"
@@ -228,6 +232,11 @@ def test_karolina_pmg_candidate_runner_records_node_layout():
     assert '--he-pmg-coarse-redundant-number "$REDUNDANT_NUMBER"' in text
     assert '--he-pmg-coarse-telescope-reduction-factor "$TELESCOPE_REDUCTION"' in text
     assert '--he-pmg-coarse-factor-solver-type "$FACTOR_SOLVER"' in text
+    assert 'KAROLINA_MEM_BIND="${KAROLINA_MEM_BIND:-local}"' in text
+    assert 'KAROLINA_CPU_MAP="${KAROLINA_CPU_MAP:-$(build_sequential_cpu_map "$RANKS_PER_NODE")}"' in text
+    assert '--cpu-bind="map_cpu:${KAROLINA_CPU_MAP}"' in text
+    assert '--cpu-bind="verbose,map_cpu:${KAROLINA_CPU_MAP}"' in text
+    assert '--mem-bind="$KAROLINA_MEM_BIND"' in text
 
 
 def test_barbora_env_build_pins_petsc324_stack():

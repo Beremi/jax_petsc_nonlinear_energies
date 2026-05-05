@@ -217,15 +217,20 @@ Karolina follow-up for the level-5 first step at full CPU-node population:
 `8` nodes, `128` MPI ranks per node, `1024` ranks total, `qcpu`,
 QoS `3571_6328`, a five-minute Slurm cap, and the procedural rank-local mesh
 source (`HE_MESH_SOURCE=procedural`).  The runner uses `--distribution=block:block`,
-records `rank_host_order.csv`, and writes `rank_node_layout.json`; by default it
+an explicit per-node `map_cpu` binding, and `--mem-bind=local`; it records
+`rank_host_order.csv`, `binding.txt`, and `rank_node_layout.json`.  By default it
 fails before the solve if contiguous rank groups do not match physical nodes.
 This is required for the redundant coarse-solve candidates where
 `pc_redundant_number=8` is intended to mean one coarse solve group per Karolina
 CPU node.  The submitter intentionally does not request `--ntasks-per-socket`:
 Karolina reports CPU nodes to Slurm as eight NUMA sockets with 16 cores each,
-while the full-node policy needed here is simply `--ntasks-per-node=128`.  PMG
-level smoothing uses Chebyshev/Jacobi; Richardson/Jacobi was not robust for the
-level-5 first-step trust-region path.
+while the full-node policy needed here is `--ntasks-per-node=128` with CPU IDs
+`0-127`.  For partial-node diagnostic runs, `KAROLINA_CPU_MAP` may be set to an
+explicit comma-separated per-node CPU list; otherwise the runner uses
+`0..RANKS_PER_NODE-1`.  Thus 16 ranks bind to one NUMA domain on Karolina, and
+32 ranks bind to two NUMA domains on one physical socket.  PMG level smoothing
+uses Chebyshev/Jacobi; Richardson/Jacobi was not robust for the level-5
+first-step trust-region path.
 
 The four prepared candidates are:
 

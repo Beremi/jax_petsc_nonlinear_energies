@@ -31,6 +31,27 @@ HE_ASSEMBLY_BACKEND="${HE_ASSEMBLY_BACKEND:-coo_local}"
 HE_LINE_SEARCH="${HE_LINE_SEARCH:-armijo}"
 HE_TRUST_RADIUS_INIT="${HE_TRUST_RADIUS_INIT:-1.0}"
 HE_TOLX_REL="${HE_TOLX_REL:-1e-4}"
+HE_SRUN_CPU_MAP="${HE_SRUN_CPU_MAP:-}"
+HE_SRUN_MEM_BIND="${HE_SRUN_MEM_BIND:-}"
+
+build_sequential_cpu_map() {
+  local count="$1"
+  local map=""
+  local cpu
+
+  if (( count < 1 )); then
+    echo "Cannot build a CPU map for ${count} ranks per node." >&2
+    return 2
+  fi
+
+  for ((cpu = 0; cpu < count; cpu++)); do
+    if [[ -n "$map" ]]; then
+      map+=","
+    fi
+    map+="$cpu"
+  done
+  printf "%s\n" "$map"
+}
 
 case "$BACKEND" in
   element|fenics) ;;
@@ -86,6 +107,22 @@ fi
 
 TOTAL_RANKS="${SLURM_NTASKS:?}"
 NODES="${SLURM_JOB_NUM_NODES:?}"
+if [[ "$HE_SRUN_CPU_MAP" == "auto" ]]; then
+  HE_SRUN_CPU_MAP="$(build_sequential_cpu_map "$RANKS_PER_NODE")"
+fi
+SRUN_PLACEMENT_ARGS=(-n "$TOTAL_RANKS" --distribution=block:block)
+SRUN_PLACEMENT_VERBOSE_ARGS=(-n "$TOTAL_RANKS" --distribution=block:block)
+if [[ -n "$HE_SRUN_CPU_MAP" ]]; then
+  SRUN_PLACEMENT_ARGS+=(--ntasks-per-node="$RANKS_PER_NODE" --cpu-bind="map_cpu:${HE_SRUN_CPU_MAP}")
+  SRUN_PLACEMENT_VERBOSE_ARGS+=(--ntasks-per-node="$RANKS_PER_NODE" --cpu-bind="verbose,map_cpu:${HE_SRUN_CPU_MAP}")
+else
+  SRUN_PLACEMENT_ARGS+=(--cpu-bind=cores)
+  SRUN_PLACEMENT_VERBOSE_ARGS+=(--cpu-bind=verbose,cores)
+fi
+if [[ -n "$HE_SRUN_MEM_BIND" ]]; then
+  SRUN_PLACEMENT_ARGS+=(--mem-bind="$HE_SRUN_MEM_BIND")
+  SRUN_PLACEMENT_VERBOSE_ARGS+=(--mem-bind="$HE_SRUN_MEM_BIND")
+fi
 CASE_ID="he_${BACKEND}_l${HE_LEVEL}_step1_n${NODES}_rps${RANKS_PER_SOCKET}_rpn${RANKS_PER_NODE}_np${TOTAL_RANKS}"
 CASE_DIR="${OUT_ROOT}/cases/${CASE_ID}/job_${SLURM_JOB_ID}"
 mkdir -p "$CASE_DIR"
@@ -110,6 +147,8 @@ trap cleanup EXIT
   echo "ranks_per_node=$RANKS_PER_NODE"
   echo "ranks_per_socket=$RANKS_PER_SOCKET"
   echo "cpus_per_task=${SLURM_CPUS_PER_TASK:-1}"
+  echo "srun_cpu_map=$HE_SRUN_CPU_MAP"
+  echo "srun_mem_bind=$HE_SRUN_MEM_BIND"
   echo "he_level=$HE_LEVEL"
   echo "total_steps=$TOTAL_STEPS"
   echo "backend=$BACKEND"
@@ -138,6 +177,8 @@ cat > "$CASE_DIR/case_metadata.json" <<JSON
   "ranks_per_node": ${RANKS_PER_NODE},
   "ranks_per_socket": ${RANKS_PER_SOCKET},
   "cpus_per_task": ${SLURM_CPUS_PER_TASK:-1},
+  "srun_cpu_map": "${HE_SRUN_CPU_MAP}",
+  "srun_mem_bind": "${HE_SRUN_MEM_BIND}",
   "problem_build_mode": "${HE_PROBLEM_BUILD_MODE}",
   "distribution_strategy": "${HE_DISTRIBUTION_STRATEGY}",
   "assembly_backend": "${HE_ASSEMBLY_BACKEND}",
@@ -164,10 +205,10 @@ JSON
   env | sort
 } > "$CASE_DIR/environment.txt" 2>&1
 
-srun -n "$TOTAL_RANKS" --cpu-bind=cores --distribution=block:block hostname \
+srun "${SRUN_PLACEMENT_ARGS[@]}" hostname \
   | sort | uniq -c > "$CASE_DIR/rank_hosts.txt"
 
-srun -n "$TOTAL_RANKS" --cpu-bind=verbose --distribution=block:block \
+srun "${SRUN_PLACEMENT_VERBOSE_ARGS[@]}" \
   bash -lc 'echo "rank=${SLURM_PROCID} local=${SLURM_LOCALID} host=$(hostname) cpuset=$(taskset -pc $$)"' \
   > "$CASE_DIR/binding.txt" 2>&1 || true
 
@@ -224,8 +265,8 @@ COMMAND=(
   --out "$RESULT_JSON"
 )
 
-printf "%q " srun -n "$TOTAL_RANKS" --cpu-bind=cores --distribution=block:block "${COMMAND[@]}" \
+printf "%q " srun "${SRUN_PLACEMENT_ARGS[@]}" "${COMMAND[@]}" \
   > "$CASE_DIR/command.txt"
 printf "\n" >> "$CASE_DIR/command.txt"
 
-srun -n "$TOTAL_RANKS" --cpu-bind=cores --distribution=block:block "${COMMAND[@]}"
+srun "${SRUN_PLACEMENT_ARGS[@]}" "${COMMAND[@]}"

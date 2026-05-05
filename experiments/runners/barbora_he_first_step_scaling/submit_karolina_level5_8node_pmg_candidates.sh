@@ -26,6 +26,7 @@ SBATCH_TEST_ONLY="${SBATCH_TEST_ONLY:-0}"
 CAMPAIGN="${CAMPAIGN:-$(date +%Y%m%d_%H%M%S)_karolina_he_l${HE_LEVEL}_8n_pmg_candidates}"
 OUT_ROOT="${OUT_ROOT:-artifacts/raw_results/karolina/he_l${HE_LEVEL}_8node_pmg_candidates/${CAMPAIGN}}"
 CANDIDATES="${CANDIDATES:-pmg_l3_redundant8_mumps pmg_l3_redundant8_superlu pmg_l3_tel16_mumps pmg_l2_redundant8_mumps}"
+KAROLINA_MEM_BIND="${KAROLINA_MEM_BIND:-local}"
 
 time_to_seconds() {
   local value="$1"
@@ -41,6 +42,25 @@ time_to_seconds() {
 quote_cmd() {
   printf "%q " "$@"
   printf "\n"
+}
+
+build_sequential_cpu_map() {
+  local count="$1"
+  local map=""
+  local cpu
+
+  if (( count < 1 || count > 128 )); then
+    echo "Karolina CPU map supports 1..128 ranks per node, got ${count}." >&2
+    return 2
+  fi
+
+  for ((cpu = 0; cpu < count; cpu++)); do
+    if [[ -n "$map" ]]; then
+      map+=","
+    fi
+    map+="$cpu"
+  done
+  printf "%s\n" "$map"
 }
 
 candidate_settings() {
@@ -92,6 +112,18 @@ fi
 
 TIME_LIMIT_S="$(time_to_seconds "$TIME_LIMIT")"
 TOTAL_RANKS=$((NODES * RANKS_PER_NODE))
+if [[ -z "${KAROLINA_CPU_MAP:-}" ]]; then
+  KAROLINA_CPU_MAP="$(build_sequential_cpu_map "$RANKS_PER_NODE")"
+  CPU_MAP_SUMMARY="map_cpu:0-$((RANKS_PER_NODE - 1))"
+else
+  CPU_MAP_SUMMARY="custom_map_cpu"
+fi
+IFS=, read -r -a KAROLINA_CPU_MAP_ENTRIES <<< "$KAROLINA_CPU_MAP"
+if (( ${#KAROLINA_CPU_MAP_ENTRIES[@]} != RANKS_PER_NODE )); then
+  echo "KAROLINA_CPU_MAP has ${#KAROLINA_CPU_MAP_ENTRIES[@]} entries, expected ${RANKS_PER_NODE}." >&2
+  exit 2
+fi
+export KAROLINA_CPU_MAP KAROLINA_MEM_BIND
 mkdir -p "$OUT_ROOT"
 OUT_ROOT="$(cd "$OUT_ROOT" && pwd)"
 mkdir -p "$OUT_ROOT/slurm" "$OUT_ROOT/summary"
@@ -100,7 +132,7 @@ PLAN="$OUT_ROOT/campaign_plan.csv"
 COMMANDS="$OUT_ROOT/sbatch_commands.txt"
 SUBMITTED="$OUT_ROOT/submitted_jobs.txt"
 
-echo "candidate,level,nodes,ranks_per_node,total_ranks,mesh_source,coarsest_level,coarse_pc,redundant_number,telescope_reduction,factor_solver,time_limit,step_time_limit_s,estimated_node_hours,placement" > "$PLAN"
+echo "candidate,level,nodes,ranks_per_node,total_ranks,mesh_source,coarsest_level,coarse_pc,redundant_number,telescope_reduction,factor_solver,time_limit,step_time_limit_s,estimated_node_hours,placement,cpu_map,mem_bind" > "$PLAN"
 : > "$COMMANDS"
 : > "$SUBMITTED"
 
@@ -113,7 +145,7 @@ for candidate in $CANDIDATES; do
   total_node_seconds=$((total_node_seconds + NODES * TIME_LIMIT_S))
   job_name="he5_${candidate}"
 
-  echo "${candidate},${HE_LEVEL},${NODES},${RANKS_PER_NODE},${TOTAL_RANKS},${HE_MESH_SOURCE},${COARSE_LEVEL},${COARSE_PC},${REDUNDANT_NUMBER},${TELESCOPE_REDUCTION},${FACTOR_SOLVER},${TIME_LIMIT},${STEP_TIME_LIMIT_S},${estimated_node_hours},block:block" >> "$PLAN"
+  echo "${candidate},${HE_LEVEL},${NODES},${RANKS_PER_NODE},${TOTAL_RANKS},${HE_MESH_SOURCE},${COARSE_LEVEL},${COARSE_PC},${REDUNDANT_NUMBER},${TELESCOPE_REDUCTION},${FACTOR_SOLVER},${TIME_LIMIT},${STEP_TIME_LIMIT_S},${estimated_node_hours},block:block,${CPU_MAP_SUMMARY},${KAROLINA_MEM_BIND}" >> "$PLAN"
 
   cmd=(
     sbatch
