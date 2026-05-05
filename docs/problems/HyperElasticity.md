@@ -28,9 +28,9 @@ load steps.
 The maintained distributed solvers use block-aware `xyz` ordering, elasticity
 near-nullspace enrichment, and GAMG coordinates so the large vector-valued
 linear systems remain scalable on the finest current mesh.
-The JAX+PETSc element path builds rank-local overlap data directly from HDF5 by
-default; the older replicated mesh build is retained only for regression
-comparisons.
+The JAX+PETSc element path builds rank-local overlap data procedurally from the
+structured beam refinement rule by default.  The rank-local HDF5 reader and the
+older replicated mesh build are retained as regression baselines.
 
 ## Maintained Implementations
 

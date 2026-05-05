@@ -35,6 +35,7 @@ from src.problems.hyperelasticity.jax_petsc.multigrid import (
 )
 from src.problems.hyperelasticity.support.mesh import (
     MeshHyperElasticity3D,
+    build_procedural_hyperelasticity_export_params,
     load_rank_local_hyperelasticity,
     local_dirichlet_values_from_reference,
     reordered_free_to_total_dofs,
@@ -115,8 +116,12 @@ def _export_state_if_requested(args, assembler, params, vec, step_records, comm)
     if bool(params.get("_distributed_local_data", False)):
         if comm.rank != 0:
             return
-        mesh_obj = MeshHyperElasticity3D(args.level)
-        export_params, _, _ = mesh_obj.get_data()
+        mesh_source = str(params.get("_distributed_mesh_source", "hdf5"))
+        if mesh_source == "procedural":
+            export_params = build_procedural_hyperelasticity_export_params(args.level)
+        else:
+            mesh_obj = MeshHyperElasticity3D(args.level)
+            export_params, _, _ = mesh_obj.get_data()
 
     if step_records:
         final_angle = float(step_records[-1]["angle"])
@@ -256,6 +261,14 @@ def run(args):
         )
         or ("coo_local" if problem_build_mode == "rank_local" else "coo")
     )
+    mesh_source = str(
+        getattr(
+            args,
+            "mesh_source",
+            "procedural" if problem_build_mode == "rank_local" else "hdf5",
+        )
+        or ("procedural" if problem_build_mode == "rank_local" else "hdf5")
+    )
 
     mesh_obj = None
     if problem_build_mode == "rank_local":
@@ -271,8 +284,14 @@ def run(args):
             int(args.level),
             comm=comm,
             reorder_mode=element_reorder_mode,
+            mesh_source=mesh_source,
         )
     elif problem_build_mode == "replicated":
+        if mesh_source != "hdf5":
+            raise ValueError(
+                "problem_build_mode='replicated' currently supports only "
+                "mesh_source='hdf5'"
+            )
         mesh_obj = MeshHyperElasticity3D(args.level)
         params, adjacency, u_init = mesh_obj.get_data()
     else:
@@ -374,7 +393,7 @@ def run(args):
             ksp,
             pmg_hierarchy,
             smoother=HEPmgSmootherConfig(
-                ksp_type=str(getattr(args, "he_pmg_smoother_ksp_type", "richardson")),
+                ksp_type=str(getattr(args, "he_pmg_smoother_ksp_type", "chebyshev")),
                 pc_type=str(getattr(args, "he_pmg_smoother_pc_type", "jacobi")),
                 steps=int(getattr(args, "he_pmg_smoother_steps", 2)),
             ),
@@ -428,7 +447,7 @@ def run(args):
             getattr(args, "he_pmg_auto_min_dofs_per_rank", 128)
         )
         pmg_metadata["smoother"] = {
-            "ksp_type": str(getattr(args, "he_pmg_smoother_ksp_type", "richardson")),
+            "ksp_type": str(getattr(args, "he_pmg_smoother_ksp_type", "chebyshev")),
             "pc_type": str(getattr(args, "he_pmg_smoother_pc_type", "jacobi")),
             "steps": int(getattr(args, "he_pmg_smoother_steps", 2)),
         }
@@ -786,6 +805,7 @@ def run(args):
                         getattr(assembler, "assembly_backend_requested", "")
                     ),
                     "problem_build_mode": str(problem_build_mode),
+                    "mesh_source": str(mesh_source),
                     "rank_local_formula_layout": bool(
                         getattr(assembler, "_formula_layout", False)
                     ),

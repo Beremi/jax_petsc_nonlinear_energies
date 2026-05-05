@@ -25,6 +25,7 @@ RANKS_PER_NODE="$4"
 TOTAL_STEPS="$5"
 BACKEND="$6"
 HE_PROBLEM_BUILD_MODE="${HE_PROBLEM_BUILD_MODE:-rank_local}"
+HE_MESH_SOURCE="${HE_MESH_SOURCE:-procedural}"
 HE_DISTRIBUTION_STRATEGY="${HE_DISTRIBUTION_STRATEGY:-overlap_p2p}"
 HE_ASSEMBLY_BACKEND="${HE_ASSEMBLY_BACKEND:-coo_local}"
 HE_LINE_SEARCH="${HE_LINE_SEARCH:-armijo}"
@@ -76,7 +77,7 @@ if [[ ! -x "$PYTHON" ]]; then
 fi
 
 MESH_PATH="data/meshes/HyperElasticity/HyperElasticity_level${HE_LEVEL}.h5"
-if [[ ! -f "$MESH_PATH" ]]; then
+if [[ "$HE_MESH_SOURCE" == "hdf5" && ! -f "$MESH_PATH" ]]; then
   echo "Required HyperElasticity mesh '$MESH_PATH' is missing." >&2
   echo "Generate it before submitting, for example:" >&2
   echo "  $PYTHON experiments/runners/barbora_he_first_step_scaling/generate_he_uniform_mesh.py --level $HE_LEVEL --validate-existing" >&2
@@ -113,6 +114,7 @@ trap cleanup EXIT
   echo "total_steps=$TOTAL_STEPS"
   echo "backend=$BACKEND"
   echo "problem_build_mode=$HE_PROBLEM_BUILD_MODE"
+  echo "mesh_source=$HE_MESH_SOURCE"
   echo "distribution_strategy=$HE_DISTRIBUTION_STRATEGY"
   echo "assembly_backend=$HE_ASSEMBLY_BACKEND"
   echo "line_search=$HE_LINE_SEARCH"
@@ -127,6 +129,7 @@ cat > "$CASE_DIR/case_metadata.json" <<JSON
   "case_id": "${CASE_ID}",
   "job_id": "${SLURM_JOB_ID}",
   "backend": "${BACKEND}",
+  "mesh_source": "${HE_MESH_SOURCE}",
   "he_level": ${HE_LEVEL},
   "first_step": 1,
   "total_steps": ${TOTAL_STEPS},
@@ -214,6 +217,7 @@ COMMAND=(
   --element-reorder-mode block_xyz
   --local-hessian-mode element
   --problem-build-mode "$HE_PROBLEM_BUILD_MODE"
+  --he-mesh-source "$HE_MESH_SOURCE"
   --distribution-strategy "$HE_DISTRIBUTION_STRATEGY"
   --assembly-backend "$HE_ASSEMBLY_BACKEND"
   --local-coloring

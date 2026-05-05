@@ -19,6 +19,7 @@ RANKS_PER_NODE="${RANKS_PER_NODE:-128}"
 TOTAL_STEPS="${TOTAL_STEPS:-24}"
 TIME_LIMIT="${TIME_LIMIT:-00:05:00}"
 STEP_TIME_LIMIT_S="${STEP_TIME_LIMIT_S:-270}"
+HE_MESH_SOURCE="${HE_MESH_SOURCE:-procedural}"
 MAX_NODE_HOURS="${MAX_NODE_HOURS:-4}"
 DRY_RUN="${DRY_RUN:-0}"
 SBATCH_TEST_ONLY="${SBATCH_TEST_ONLY:-0}"
@@ -99,7 +100,7 @@ PLAN="$OUT_ROOT/campaign_plan.csv"
 COMMANDS="$OUT_ROOT/sbatch_commands.txt"
 SUBMITTED="$OUT_ROOT/submitted_jobs.txt"
 
-echo "candidate,level,nodes,ranks_per_node,total_ranks,coarsest_level,coarse_pc,redundant_number,telescope_reduction,factor_solver,time_limit,step_time_limit_s,estimated_node_hours,placement" > "$PLAN"
+echo "candidate,level,nodes,ranks_per_node,total_ranks,mesh_source,coarsest_level,coarse_pc,redundant_number,telescope_reduction,factor_solver,time_limit,step_time_limit_s,estimated_node_hours,placement" > "$PLAN"
 : > "$COMMANDS"
 : > "$SUBMITTED"
 
@@ -112,7 +113,7 @@ for candidate in $CANDIDATES; do
   total_node_seconds=$((total_node_seconds + NODES * TIME_LIMIT_S))
   job_name="he5_${candidate}"
 
-  echo "${candidate},${HE_LEVEL},${NODES},${RANKS_PER_NODE},${TOTAL_RANKS},${COARSE_LEVEL},${COARSE_PC},${REDUNDANT_NUMBER},${TELESCOPE_REDUCTION},${FACTOR_SOLVER},${TIME_LIMIT},${STEP_TIME_LIMIT_S},${estimated_node_hours},block:block" >> "$PLAN"
+  echo "${candidate},${HE_LEVEL},${NODES},${RANKS_PER_NODE},${TOTAL_RANKS},${HE_MESH_SOURCE},${COARSE_LEVEL},${COARSE_PC},${REDUNDANT_NUMBER},${TELESCOPE_REDUCTION},${FACTOR_SOLVER},${TIME_LIMIT},${STEP_TIME_LIMIT_S},${estimated_node_hours},block:block" >> "$PLAN"
 
   cmd=(
     sbatch

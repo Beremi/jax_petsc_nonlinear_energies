@@ -13,8 +13,10 @@ Default case:
 - nonlinear stabilization: Armijo subproblem line search, initial trust
   radius `1.0`, and stricter step convergence
   (`HE_LINE_SEARCH=armijo`, `HE_TRUST_RADIUS_INIT=1.0`, `HE_TOLX_REL=1e-4`)
-- problem build: rank-local HDF5 reads with point-to-point overlap exchange
+- problem build: procedural rank-local mesh construction with point-to-point
+  overlap exchange
   (`HE_PROBLEM_BUILD_MODE=rank_local`,
+  `HE_MESH_SOURCE=procedural`,
   `HE_DISTRIBUTION_STRATEGY=overlap_p2p`,
   `HE_ASSEMBLY_BACKEND=coo_local`)
 - cluster: Barbora CPU, account `fta-26-40`, QoS `3571_6324`, partition `qcpu`
@@ -28,7 +30,9 @@ The level-5 mesh generation manifest is under
 The level-5 first-step run is under
 `artifacts/raw_results/example_runs/he_level5_first_step_20260503_085556/`.
 `data/meshes/HyperElasticity/HyperElasticity_level5.h5` is tracked with Git
-LFS because the generated HDF5 is larger than GitHub's regular blob limit.
+LFS because the generated HDF5 is larger than GitHub's regular blob limit.  It
+is now a regression/provenance baseline; the rank-local production path
+recomputes the same structured mesh data procedurally at runtime.
 
 Observed on this workstation on 2026-05-03:
 
@@ -211,15 +215,17 @@ bash experiments/runners/barbora_he_first_step_scaling/submit_level4_one_node_so
 `submit_karolina_level5_8node_pmg_candidates.sh` prepares the focused
 Karolina follow-up for the level-5 first step at full CPU-node population:
 `8` nodes, `128` MPI ranks per node, `1024` ranks total, `qcpu`,
-QoS `3571_6328`, and a five-minute Slurm cap.  The runner uses
-`--distribution=block:block`, records `rank_host_order.csv`, and writes
-`rank_node_layout.json`; by default it fails before the solve if contiguous
-rank groups do not match physical nodes.  This is required for the redundant
-coarse-solve candidates where `pc_redundant_number=8` is intended to mean one
-coarse solve group per Karolina CPU node.  The submitter intentionally does
-not request `--ntasks-per-socket`: Karolina reports CPU nodes to Slurm as
-eight NUMA sockets with 16 cores each, while the full-node policy needed here
-is simply `--ntasks-per-node=128`.
+QoS `3571_6328`, a five-minute Slurm cap, and the procedural rank-local mesh
+source (`HE_MESH_SOURCE=procedural`).  The runner uses `--distribution=block:block`,
+records `rank_host_order.csv`, and writes `rank_node_layout.json`; by default it
+fails before the solve if contiguous rank groups do not match physical nodes.
+This is required for the redundant coarse-solve candidates where
+`pc_redundant_number=8` is intended to mean one coarse solve group per Karolina
+CPU node.  The submitter intentionally does not request `--ntasks-per-socket`:
+Karolina reports CPU nodes to Slurm as eight NUMA sockets with 16 cores each,
+while the full-node policy needed here is simply `--ntasks-per-node=128`.  PMG
+level smoothing uses Chebyshev/Jacobi; Richardson/Jacobi was not robust for the
+level-5 first-step trust-region path.
 
 The four prepared candidates are:
 

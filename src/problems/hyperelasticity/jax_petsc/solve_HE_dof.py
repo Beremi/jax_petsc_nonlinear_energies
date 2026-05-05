@@ -121,6 +121,13 @@ def _build_parser(profile_defaults):
         help="Element mode only: build rank-local overlap data or the legacy replicated mesh",
     )
     parser.add_argument(
+        "--mesh_source",
+        choices=("procedural", "hdf5"),
+        default=None,
+        help="Element rank-local mode only: build the structured HE mesh procedurally "
+             "or read rank-local rows from HDF5",
+    )
+    parser.add_argument(
         "--distribution_strategy",
         choices=("overlap_p2p", "overlap_allgather"),
         default=None,
@@ -144,7 +151,7 @@ def _build_parser(profile_defaults):
         default=128,
         help="Minimum coarse-grid free DOFs per rank used by --he_pmg_coarsest_level auto",
     )
-    parser.add_argument("--he_pmg_smoother_ksp_type", type=str, default="richardson")
+    parser.add_argument("--he_pmg_smoother_ksp_type", type=str, default="chebyshev")
     parser.add_argument("--he_pmg_smoother_pc_type", type=str, default="jacobi")
     parser.add_argument("--he_pmg_smoother_steps", type=int, default=2)
     parser.add_argument("--he_pmg_coarse_ksp_type", type=str, default="")

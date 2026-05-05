@@ -47,6 +47,8 @@ def test_he_jax_petsc_direct_cli_accepts_distributed_element_options():
         [
             "--problem_build_mode",
             "rank_local",
+            "--mesh_source",
+            "procedural",
             "--distribution_strategy",
             "overlap_p2p",
             "--assembly_backend",
@@ -55,6 +57,7 @@ def test_he_jax_petsc_direct_cli_accepts_distributed_element_options():
     )
 
     assert args.problem_build_mode == "rank_local"
+    assert args.mesh_source == "procedural"
     assert args.distribution_strategy == "overlap_p2p"
     assert args.assembly_backend == "coo_local"
 
@@ -86,3 +89,11 @@ def test_he_jax_petsc_direct_cli_accepts_pmg_options():
     assert args.he_pmg_coarse_pc_type == "redundant"
     assert args.he_pmg_coarse_redundant_number == 16
     assert args.he_pmg_coarse_telescope_reduction_factor == 16
+
+
+def test_he_jax_petsc_direct_cli_defaults_to_chebyshev_pmg_smoother():
+    parser = solve_HE_dof._build_parser({"reference": {}, "performance": {}})
+    args = parser.parse_args(["--pc_type", "mg"])
+
+    assert args.he_pmg_smoother_ksp_type == "chebyshev"
+    assert args.he_pmg_smoother_pc_type == "jacobi"

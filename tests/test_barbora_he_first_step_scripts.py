@@ -74,12 +74,14 @@ def test_barbora_he_sbatch_defaults_to_distributed_element_path():
     )
 
     assert 'HE_PROBLEM_BUILD_MODE="${HE_PROBLEM_BUILD_MODE:-rank_local}"' in text
+    assert 'HE_MESH_SOURCE="${HE_MESH_SOURCE:-procedural}"' in text
     assert 'HE_DISTRIBUTION_STRATEGY="${HE_DISTRIBUTION_STRATEGY:-overlap_p2p}"' in text
     assert 'HE_ASSEMBLY_BACKEND="${HE_ASSEMBLY_BACKEND:-coo_local}"' in text
     assert 'HE_LINE_SEARCH="${HE_LINE_SEARCH:-armijo}"' in text
     assert 'HE_TRUST_RADIUS_INIT="${HE_TRUST_RADIUS_INIT:-1.0}"' in text
     assert 'HE_TOLX_REL="${HE_TOLX_REL:-1e-4}"' in text
     assert '--problem-build-mode "$HE_PROBLEM_BUILD_MODE"' in text
+    assert '--he-mesh-source "$HE_MESH_SOURCE"' in text
     assert '--distribution-strategy "$HE_DISTRIBUTION_STRATEGY"' in text
     assert '--assembly-backend "$HE_ASSEMBLY_BACKEND"' in text
     assert '--line-search "$HE_LINE_SEARCH"' in text
@@ -161,6 +163,7 @@ def test_karolina_level5_8node_pmg_candidates_are_fixed(tmp_path):
     assert 'RANKS_PER_NODE="${RANKS_PER_NODE:-128}"' in text
     assert 'TIME_LIMIT="${TIME_LIMIT:-00:05:00}"' in text
     assert 'STEP_TIME_LIMIT_S="${STEP_TIME_LIMIT_S:-270}"' in text
+    assert 'HE_MESH_SOURCE="${HE_MESH_SOURCE:-procedural}"' in text
     assert "--distribution block:block" in text
     assert "--ntasks-per-socket" not in text
 
@@ -177,6 +180,7 @@ def test_karolina_level5_8node_pmg_candidates_are_fixed(tmp_path):
         assert row["nodes"] == "8"
         assert row["ranks_per_node"] == "128"
         assert row["total_ranks"] == "1024"
+        assert row["mesh_source"] == "procedural"
         assert row["time_limit"] == "00:05:00"
         assert row["step_time_limit_s"] == "270"
         assert row["placement"] == "block:block"
@@ -215,7 +219,11 @@ def test_karolina_pmg_candidate_runner_records_node_layout():
     assert "--distribution=block:block" in text
     assert 'group_id * ranks_per_node' in text
     assert '--pc-type mg' in text
+    assert 'HE_MESH_SOURCE="${HE_MESH_SOURCE:-procedural}"' in text
+    assert '--he-mesh-source "$HE_MESH_SOURCE"' in text
     assert '--he-pmg-coarsest-level "$COARSE_LEVEL"' in text
+    assert "--he-pmg-smoother-ksp-type chebyshev" in text
+    assert "--he-pmg-smoother-pc-type jacobi" in text
     assert '--he-pmg-coarse-pc-type "$COARSE_PC"' in text
     assert '--he-pmg-coarse-redundant-number "$REDUNDANT_NUMBER"' in text
     assert '--he-pmg-coarse-telescope-reduction-factor "$TELESCOPE_REDUCTION"' in text

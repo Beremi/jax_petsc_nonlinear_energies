@@ -62,6 +62,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
     )
     parser.add_argument(
+        "--he-mesh-source",
+        choices=("procedural", "hdf5"),
+        default=None,
+        help="HE rank-local element mode mesh source.",
+    )
+    parser.add_argument(
         "--distribution-strategy",
         choices=("overlap_p2p", "overlap_allgather"),
         default=None,
@@ -78,7 +84,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="HE PCMG coarsest level, or 'auto' to choose from MPI rank count.",
     )
     parser.add_argument("--he-pmg-auto-min-dofs-per-rank", type=int, default=128)
-    parser.add_argument("--he-pmg-smoother-ksp-type", type=str, default="richardson")
+    parser.add_argument("--he-pmg-smoother-ksp-type", type=str, default="chebyshev")
     parser.add_argument("--he-pmg-smoother-pc-type", type=str, default="jacobi")
     parser.add_argument("--he-pmg-smoother-steps", type=int, default=2)
     parser.add_argument("--he-pmg-coarse-ksp-type", type=str, default="")
@@ -361,6 +367,7 @@ def _run_he(args):
         element_reorder_mode=args.element_reorder_mode,
         local_hessian_mode=args.local_hessian_mode,
         problem_build_mode=args.problem_build_mode,
+        mesh_source=args.he_mesh_source,
         distribution_strategy=args.distribution_strategy,
         assembly_backend=args.assembly_backend,
         he_pmg_coarsest_level=args.he_pmg_coarsest_level,

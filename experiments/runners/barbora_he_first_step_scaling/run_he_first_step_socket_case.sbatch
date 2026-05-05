@@ -28,6 +28,7 @@ BACKEND="${10}"
 SLURM_TIME_LIMIT_REQUESTED="${11:-${SLURM_TIMELIMIT:-}}"
 CPU_MAP="${12:-}"
 HE_PROBLEM_BUILD_MODE="${HE_PROBLEM_BUILD_MODE:-rank_local}"
+HE_MESH_SOURCE="${HE_MESH_SOURCE:-procedural}"
 HE_DISTRIBUTION_STRATEGY="${HE_DISTRIBUTION_STRATEGY:-overlap_p2p}"
 HE_ASSEMBLY_BACKEND="${HE_ASSEMBLY_BACKEND:-coo_local}"
 HE_LINE_SEARCH="${HE_LINE_SEARCH:-armijo}"
@@ -124,7 +125,7 @@ if [[ ! -x "$PYTHON" ]]; then
 fi
 
 MESH_PATH="data/meshes/HyperElasticity/HyperElasticity_level${HE_LEVEL}.h5"
-if [[ ! -f "$MESH_PATH" ]]; then
+if [[ "$HE_MESH_SOURCE" == "hdf5" && ! -f "$MESH_PATH" ]]; then
   echo "Required HyperElasticity mesh '$MESH_PATH' is missing." >&2
   exit 2
 fi
@@ -163,6 +164,7 @@ trap cleanup EXIT
   echo "total_steps=$TOTAL_STEPS"
   echo "backend=$BACKEND"
   echo "problem_build_mode=$HE_PROBLEM_BUILD_MODE"
+  echo "mesh_source=$HE_MESH_SOURCE"
   echo "distribution_strategy=$HE_DISTRIBUTION_STRATEGY"
   echo "assembly_backend=$HE_ASSEMBLY_BACKEND"
   echo "line_search=$HE_LINE_SEARCH"
@@ -192,6 +194,7 @@ cat > "$CASE_DIR/case_metadata.json" <<JSON
   "step_time_limit_s": ${STEP_TIME_LIMIT_S},
   "slurm_time_limit": "${SLURM_TIME_LIMIT_REQUESTED}",
   "problem_build_mode": "${HE_PROBLEM_BUILD_MODE}",
+  "mesh_source": "${HE_MESH_SOURCE}",
   "distribution_strategy": "${HE_DISTRIBUTION_STRATEGY}",
   "assembly_backend": "${HE_ASSEMBLY_BACKEND}",
   "line_search": "${HE_LINE_SEARCH}",
@@ -271,6 +274,7 @@ COMMAND=(
   --element-reorder-mode block_xyz
   --local-hessian-mode element
   --problem-build-mode "$HE_PROBLEM_BUILD_MODE"
+  --he-mesh-source "$HE_MESH_SOURCE"
   --distribution-strategy "$HE_DISTRIBUTION_STRATEGY"
   --assembly-backend "$HE_ASSEMBLY_BACKEND"
   --local-coloring

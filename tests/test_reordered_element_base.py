@@ -17,7 +17,11 @@ from src.problems.hyperelasticity.jax_petsc.multigrid import (
 )
 from src.problems.hyperelasticity.support.mesh import (
     MeshHyperElasticity3D,
+    _node_coordinates,
     _node_ijk,
+    generate_structured_elements_for_indices,
+    generate_structured_element_data_for_indices,
+    grid_for_level,
     load_rank_local_hyperelasticity,
     reordered_free_to_total_dofs,
     total_dofs_to_reordered_free,
@@ -152,6 +156,64 @@ def test_hyperelasticity_rank_local_comm_self_loads_all_elements_without_adjacen
     np.testing.assert_allclose(u_init, mesh.u_init[perm])
 
 
+def test_hyperelasticity_procedural_mesh_matches_hdf5_rows_on_level1():
+    mesh = MeshHyperElasticity3D(1)
+    grid = grid_for_level(1)
+    elem_idx = np.arange(mesh.params["elems_scalar"].shape[0], dtype=np.int64)
+    elems = generate_structured_elements_for_indices(elem_idx, grid)
+    dphix, dphiy, dphiz, vol = generate_structured_element_data_for_indices(
+        elem_idx,
+        grid,
+    )
+
+    np.testing.assert_array_equal(elems, mesh.params["elems_scalar"])
+    np.testing.assert_allclose(dphix, mesh.params["dphix"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(dphiy, mesh.params["dphiy"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(dphiz, mesh.params["dphiz"], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(vol, mesh.params["vol"], rtol=1e-12, atol=1e-18)
+
+
+def test_hyperelasticity_rank_local_procedural_matches_hdf5_source_level1():
+    procedural, _, u_proc = load_rank_local_hyperelasticity(
+        1,
+        comm=MPI.COMM_SELF,
+        reorder_mode="block_xyz",
+        mesh_source="procedural",
+    )
+    hdf5, _, u_hdf5 = load_rank_local_hyperelasticity(
+        1,
+        comm=MPI.COMM_SELF,
+        reorder_mode="block_xyz",
+        mesh_source="hdf5",
+    )
+
+    assert procedural["_distributed_mesh_source"] == "procedural"
+    assert hdf5["_distributed_mesh_source"] == "hdf5"
+    for key in (
+        "_distributed_local_elem_idx",
+        "_distributed_local_elems_total",
+        "_distributed_local_elems_reordered",
+        "_distributed_local_total_nodes",
+        "_distributed_elems_local_np",
+        "_distributed_local_elems_scalar_np",
+        "_distributed_local_total_to_free_reord",
+    ):
+        np.testing.assert_array_equal(procedural[key], hdf5[key])
+    for key in (
+        "_distributed_energy_weights",
+        "_distributed_dphix",
+        "_distributed_dphiy",
+        "_distributed_dphiz",
+        "_distributed_vol",
+        "_distributed_dirichlet_ref_local",
+        "_distributed_u_init_owned",
+        "_distributed_owned_block_coordinates",
+        "_distributed_owned_nullspace",
+    ):
+        np.testing.assert_allclose(procedural[key], hdf5[key], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(u_proc, u_hdf5, rtol=1e-12, atol=1e-12)
+
+
 def test_hyperelasticity_rank_local_matches_replicated_coo_on_level1():
     comm = MPI.COMM_SELF
     mesh = MeshHyperElasticity3D(1)
@@ -263,5 +325,28 @@ def test_hyperelasticity_pmg_transfer_preserves_partitioned_row_shape():
         np.testing.assert_allclose(row_sums[fully_interior], 1.0, atol=1e-12)
         assert float(np.min(row_sums)) >= 0.0
         assert float(np.max(row_sums)) <= 1.0
+
+        coarse_reord = np.arange(coarse.n_free, dtype=np.int64)
+        fine_reord = np.arange(fine.n_free, dtype=np.int64)
+        coarse_total = reordered_free_to_total_dofs(coarse_reord, coarse.grid, "block_xyz")
+        fine_total = reordered_free_to_total_dofs(fine_reord, fine.grid, "block_xyz")
+        coarse_coords = _node_coordinates(coarse_total // 3, coarse.grid)
+        fine_coords = _node_coordinates(fine_total // 3, fine.grid)
+
+        coarse_vec = prolong.createVecRight()
+        fine_vec = prolong.createVecLeft()
+        coarse_vec.array[:] = coarse_coords[:, 0] * coarse_coords[:, 1]
+        prolong.mult(coarse_vec, fine_vec)
+        ix, _, _ = _node_ijk(fine_total // 3, fine.grid)
+        coarse_cell_x = np.minimum(ix // 2, int(coarse.grid.nx) - 1)
+        interior_x = (coarse_cell_x > 0) & (coarse_cell_x < int(coarse.grid.nx) - 1)
+        np.testing.assert_allclose(
+            fine_vec.array[interior_x],
+            fine_coords[interior_x, 0] * fine_coords[interior_x, 1],
+            rtol=1e-12,
+            atol=1e-12,
+        )
+        coarse_vec.destroy()
+        fine_vec.destroy()
     finally:
         hierarchy.cleanup()

@@ -10,6 +10,26 @@ from src.core.petsc.dof_partition import _rank_of_dof_vec, petsc_ownership_range
 from src.core.problem_data.hdf5 import load_problem_hdf5, mesh_data_path
 
 
+LENGTH_X = 0.4
+HALF_WIDTH = 0.005
+C1 = 38461538.461538464
+D1 = 83333333.33333333
+
+# Cube node order:
+# n000, n100, n010, n110, n001, n101, n011, n111.
+TET_TEMPLATE = np.array(
+    [
+        [0, 1, 2, 5],
+        [0, 2, 4, 5],
+        [2, 4, 5, 6],
+        [1, 3, 2, 5],
+        [3, 5, 7, 2],
+        [2, 5, 7, 6],
+    ],
+    dtype=np.int64,
+)
+
+
 @dataclass(frozen=True)
 class HyperElasticityGrid:
     nx: int
@@ -70,6 +90,21 @@ def dimensions_for_level(level: int) -> tuple[int, int, int]:
     return 80 * (2 ** (int(level) - 1)), 2 ** int(level), 2 ** int(level)
 
 
+def grid_for_level(level: int) -> HyperElasticityGrid:
+    nx, ny, nz = dimensions_for_level(int(level))
+    return HyperElasticityGrid(
+        nx=nx,
+        ny=ny,
+        nz=nz,
+        x_min=0.0,
+        x_max=LENGTH_X,
+        y_min=-HALF_WIDTH,
+        y_max=HALF_WIDTH,
+        z_min=-HALF_WIDTH,
+        z_max=HALF_WIDTH,
+    )
+
+
 def _read_grid_metadata(path: str, level: int) -> HyperElasticityGrid:
     nx, ny, nz = dimensions_for_level(int(level))
     with h5py.File(path, "r") as handle:
@@ -90,16 +125,118 @@ def _read_grid_metadata(path: str, level: int) -> HyperElasticityGrid:
         y_max = float(coords[(ny * (nx + 1)), 1])
         z_min = float(coords[0, 2])
         z_max = float(coords[(nz * (nx + 1) * (ny + 1)), 2])
-    return HyperElasticityGrid(
-        nx=nx,
-        ny=ny,
-        nz=nz,
-        x_min=x_min,
-        x_max=x_max,
-        y_min=y_min,
-        y_max=y_max,
-        z_min=z_min,
-        z_max=z_max,
+    return HyperElasticityGrid(nx, ny, nz, x_min, x_max, y_min, y_max, z_min, z_max)
+
+
+def _cube_offsets(grid: HyperElasticityGrid) -> np.ndarray:
+    nx1 = int(grid.nx1)
+    ny1 = int(grid.ny1)
+    return np.array(
+        [
+            0,
+            1,
+            nx1,
+            nx1 + 1,
+            nx1 * ny1,
+            nx1 * ny1 + 1,
+            nx1 * ny1 + nx1,
+            nx1 * ny1 + nx1 + 1,
+        ],
+        dtype=np.int64,
+    )
+
+
+def generate_structured_nodes(grid: HyperElasticityGrid) -> np.ndarray:
+    x = np.linspace(float(grid.x_min), float(grid.x_max), int(grid.nx1), dtype=np.float64)
+    y = np.linspace(float(grid.y_min), float(grid.y_max), int(grid.ny1), dtype=np.float64)
+    z = np.linspace(float(grid.z_min), float(grid.z_max), int(grid.nz1), dtype=np.float64)
+
+    coords = np.empty((int(grid.n_nodes), 3), dtype=np.float64)
+    coords[:, 0] = np.tile(x, int(grid.ny1) * int(grid.nz1))
+    coords[:, 1] = np.tile(np.repeat(y, int(grid.nx1)), int(grid.nz1))
+    coords[:, 2] = np.repeat(z, int(grid.nx1) * int(grid.ny1))
+    return coords
+
+
+def generate_structured_elements_for_indices(
+    elem_indices: np.ndarray,
+    grid: HyperElasticityGrid,
+) -> np.ndarray:
+    elem = np.asarray(elem_indices, dtype=np.int64).ravel()
+    if elem.size == 0:
+        return np.zeros((0, 4), dtype=np.int64)
+    cell = elem // int(TET_TEMPLATE.shape[0])
+    tet = elem % int(TET_TEMPLATE.shape[0])
+    cx = cell % int(grid.nx)
+    plane = cell // int(grid.nx)
+    cy = plane % int(grid.ny)
+    cz = plane // int(grid.ny)
+    base = (cz * int(grid.ny1) + cy) * int(grid.nx1) + cx
+    cube = base[:, None] + _cube_offsets(grid)[None, :]
+    return cube[np.arange(elem.size)[:, None], TET_TEMPLATE[tet]]
+
+
+def _reference_gradient_patterns(
+    grid: HyperElasticityGrid,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    dx = (float(grid.x_max) - float(grid.x_min)) / float(grid.nx)
+    dy = (float(grid.y_max) - float(grid.y_min)) / float(grid.ny)
+    dz = (float(grid.z_max) - float(grid.z_min)) / float(grid.nz)
+    cube = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [dx, 0.0, 0.0],
+            [0.0, dy, 0.0],
+            [dx, dy, 0.0],
+            [0.0, 0.0, dz],
+            [dx, 0.0, dz],
+            [0.0, dy, dz],
+            [dx, dy, dz],
+        ],
+        dtype=np.float64,
+    )
+
+    gradients = np.empty((int(TET_TEMPLATE.shape[0]), 4, 3), dtype=np.float64)
+    volumes = np.empty(int(TET_TEMPLATE.shape[0]), dtype=np.float64)
+    for idx, tet_nodes in enumerate(TET_TEMPLATE):
+        vertices = cube[tet_nodes]
+        matrix = np.ones((4, 4), dtype=np.float64)
+        matrix[:, 1:] = vertices
+        gradients[idx] = np.linalg.inv(matrix)[1:, :].T
+        jac = np.column_stack(
+            [
+                vertices[1] - vertices[0],
+                vertices[2] - vertices[0],
+                vertices[3] - vertices[0],
+            ]
+        )
+        volumes[idx] = abs(np.linalg.det(jac)) / 6.0
+
+    gradients[np.abs(gradients) < 1e-12] = 0.0
+    return gradients[:, :, 0], gradients[:, :, 1], gradients[:, :, 2], volumes
+
+
+def generate_structured_element_data_for_indices(
+    elem_indices: np.ndarray,
+    grid: HyperElasticityGrid,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    elem = np.asarray(elem_indices, dtype=np.int64).ravel()
+    if elem.size == 0:
+        return (
+            np.zeros((0, 4), dtype=np.float64),
+            np.zeros((0, 4), dtype=np.float64),
+            np.zeros((0, 4), dtype=np.float64),
+            np.zeros(0, dtype=np.float64),
+        )
+    tet = elem % int(TET_TEMPLATE.shape[0])
+    dphix_pattern, dphiy_pattern, dphiz_pattern, vol_pattern = (
+        _reference_gradient_patterns(grid)
+    )
+    return (
+        np.asarray(dphix_pattern[tet], dtype=np.float64),
+        np.asarray(dphiy_pattern[tet], dtype=np.float64),
+        np.asarray(dphiz_pattern[tet], dtype=np.float64),
+        np.asarray(vol_pattern[tet], dtype=np.float64),
     )
 
 
@@ -306,22 +443,58 @@ def _owned_nullspace(
     return kernel
 
 
+def build_procedural_hyperelasticity_export_params(
+    mesh_level: int,
+) -> dict[str, object]:
+    """Build full structured HE metadata needed for state export/validation."""
+    grid = grid_for_level(int(mesh_level))
+    nodes2coord = generate_structured_nodes(grid)
+    elem_idx = np.arange(6 * int(grid.nx) * int(grid.ny) * int(grid.nz), dtype=np.int64)
+    elems_scalar = generate_structured_elements_for_indices(elem_idx, grid)
+    u0_ref = nodes2coord.ravel()
+    freedofs = _structured_freedofs(grid)
+    right_nodes = np.where(
+        np.isclose(nodes2coord[:, 0], float(grid.x_max))
+    )[0].astype(np.int64)
+    return {
+        "u_0": u0_ref.copy(),
+        "u_0_ref": u0_ref.copy(),
+        "freedofs": freedofs,
+        "elems_scalar": elems_scalar,
+        "nodes2coord": nodes2coord,
+        "right_nodes": right_nodes,
+        "C1": C1,
+        "D1": D1,
+    }
+
+
 def load_rank_local_hyperelasticity(
     mesh_level: int,
     *,
     comm: MPI.Comm,
     reorder_mode: str = "block_xyz",
+    mesh_source: str = "procedural",
 ) -> tuple[dict[str, object], None, np.ndarray]:
-    """Load only this rank's HyperElasticity overlap domain from HDF5."""
+    """Build only this rank's HyperElasticity overlap domain."""
     mode = str(reorder_mode)
     if mode not in {"none", "block_xyz"}:
         raise ValueError(
             f"rank-local HyperElasticity supports element_reorder_mode='none' "
             f"or 'block_xyz', got {mode!r}"
         )
+    source = str(mesh_source)
+    if source not in {"procedural", "hdf5"}:
+        raise ValueError(
+            "rank-local HyperElasticity mesh_source must be 'procedural' or "
+            f"'hdf5', got {source!r}"
+        )
 
     filename = mesh_data_path("HyperElasticity", f"HyperElasticity_level{int(mesh_level)}.h5")
-    grid = _read_grid_metadata(filename, int(mesh_level))
+    grid = (
+        grid_for_level(int(mesh_level))
+        if source == "procedural"
+        else _read_grid_metadata(filename, int(mesh_level))
+    )
     n_free = int(grid.n_free_dofs)
     n_total = int(grid.n_total_dofs)
     dtype = _index_dtype(n_free)
@@ -331,17 +504,26 @@ def load_rank_local_hyperelasticity(
     owned_node_ids = np.unique(owned_total_dofs // 3)
     local_elem_idx = _local_candidate_element_indices(owned_node_ids, grid)
 
-    with h5py.File(filename, "r") as handle:
-        elems_scalar = np.asarray(
-            _read_rows_grouped(handle["elems2nodes"], local_elem_idx),
-            dtype=np.int64,
+    if source == "procedural":
+        elems_scalar = generate_structured_elements_for_indices(local_elem_idx, grid)
+        dphix, dphiy, dphiz, vol = generate_structured_element_data_for_indices(
+            local_elem_idx,
+            grid,
         )
-        dphix = np.asarray(_read_rows_grouped(handle["dphix"], local_elem_idx), dtype=np.float64)
-        dphiy = np.asarray(_read_rows_grouped(handle["dphiy"], local_elem_idx), dtype=np.float64)
-        dphiz = np.asarray(_read_rows_grouped(handle["dphiz"], local_elem_idx), dtype=np.float64)
-        vol = np.asarray(_read_rows_grouped(handle["vol"], local_elem_idx), dtype=np.float64)
-        c1 = float(handle["C1"][()])
-        d1 = float(handle["D1"][()])
+        c1 = C1
+        d1 = D1
+    else:
+        with h5py.File(filename, "r") as handle:
+            elems_scalar = np.asarray(
+                _read_rows_grouped(handle["elems2nodes"], local_elem_idx),
+                dtype=np.int64,
+            )
+            dphix = np.asarray(_read_rows_grouped(handle["dphix"], local_elem_idx), dtype=np.float64)
+            dphiy = np.asarray(_read_rows_grouped(handle["dphiy"], local_elem_idx), dtype=np.float64)
+            dphiz = np.asarray(_read_rows_grouped(handle["dphiz"], local_elem_idx), dtype=np.float64)
+            vol = np.asarray(_read_rows_grouped(handle["vol"], local_elem_idx), dtype=np.float64)
+            c1 = float(handle["C1"][()])
+            d1 = float(handle["D1"][()])
 
     elems_total = expand_tet_connectivity_to_dofs(elems_scalar)
     elems_reordered = total_dofs_to_reordered_free(elems_total, grid, mode)
@@ -390,6 +572,7 @@ def load_rank_local_hyperelasticity(
         "C1": c1,
         "D1": d1,
         "_he_grid": grid,
+        "_distributed_mesh_source": source,
         "_distributed_formula_layout": True,
         "_distributed_local_data": True,
         "_distributed_reorder_mode": mode,

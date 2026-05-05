@@ -36,7 +36,7 @@ Important retained traits:
 
 - block size `3`
 - block-aware free-DOF ordering (`block_xyz` default)
-- rank-local HDF5 reads for the production element path
+- procedural rank-local structured mesh construction for the production element path
 - point-to-point overlap exchange (`overlap_p2p`)
 - local-overlap PETSc COO preallocation (`coo_local`)
 - optional GAMG coordinates
@@ -52,6 +52,7 @@ The maintained production path is:
 - `--element_reorder_mode block_xyz`
 - `--local_hessian_mode element`
 - `--problem_build_mode rank_local`
+- `--mesh_source procedural`
 - `--distribution_strategy overlap_p2p`
 - `--assembly_backend coo_local`
 - `--local_coloring`

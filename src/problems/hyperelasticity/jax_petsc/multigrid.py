@@ -15,11 +15,10 @@ from src.problems.hyperelasticity.support.mesh import (
     _free_block_to_node_ids,
     _node_coordinates,
     _node_ijk,
-    _read_grid_metadata,
     dimensions_for_level,
+    grid_for_level,
     total_dofs_to_reordered_free,
 )
-from src.core.problem_data.hdf5 import mesh_data_path
 
 
 VECTOR_BLOCK_SIZE = 3
@@ -39,19 +38,6 @@ _CUBE_OFFSETS_UNIT = np.array(
     ],
     dtype=np.float64,
 )
-
-_TET_TEMPLATE = np.array(
-    [
-        [0, 1, 2, 5],
-        [0, 2, 4, 5],
-        [2, 4, 5, 6],
-        [1, 3, 2, 5],
-        [3, 5, 7, 2],
-        [2, 5, 7, 6],
-    ],
-    dtype=np.int64,
-)
-
 
 @dataclass(frozen=True)
 class HELevelSpace:
@@ -133,8 +119,7 @@ def _level_space(level: int, comm: MPI.Comm, reorder_mode: str) -> HELevelSpace:
             "HE PMG supports element_reorder_mode='none' or 'block_xyz'; "
             f"got {mode!r}"
         )
-    path = mesh_data_path("HyperElasticity", f"HyperElasticity_level{int(level)}.h5")
-    grid = _read_grid_metadata(path, int(level))
+    grid = grid_for_level(int(level))
     n_free = int(grid.n_free_dofs)
     lo, hi = petsc_ownership_range(
         n_free,
@@ -170,41 +155,37 @@ def _cube_offsets(grid: HyperElasticityGrid) -> np.ndarray:
     )
 
 
-def _precompute_half_grid_tet_weights() -> dict[int, tuple[np.ndarray, np.ndarray]]:
+def _precompute_half_grid_trilinear_weights() -> dict[int, tuple[np.ndarray, np.ndarray]]:
+    """Interpolation weights for half-grid points in a structured brick.
+
+    The checked-in HE levels are generated independently from the same brick
+    grid recipe.  The fine tetrahedra are therefore not a nested subdivision of
+    the coarse tetrahedra, even though the logical brick grids are nested.
+    Trilinear nodal interpolation on the structured brick grid gives the
+    geometrically consistent inter-level transfer for this hierarchy.
+    """
+
     out: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+    corners = _CUBE_OFFSETS_UNIT.astype(np.int64)
     for ix2 in range(3):
         for iy2 in range(3):
             for iz2 in range(3):
                 point = np.array([ix2, iy2, iz2], dtype=np.float64) / 2.0
-                for tet in _TET_TEMPLATE:
-                    vertices = _CUBE_OFFSETS_UNIT[tet]
-                    base = vertices[0]
-                    jac = np.column_stack(
-                        (
-                            vertices[1] - base,
-                            vertices[2] - base,
-                            vertices[3] - base,
-                        )
-                    )
-                    xi = np.linalg.solve(jac, point - base)
-                    lambdas = np.array(
-                        [1.0 - float(np.sum(xi)), xi[0], xi[1], xi[2]],
-                        dtype=np.float64,
-                    )
-                    if np.all(lambdas >= -1.0e-12) and np.all(lambdas <= 1.0 + 1.0e-12):
-                        key = int(ix2 * 9 + iy2 * 3 + iz2)
-                        keep = np.abs(lambdas) > 1.0e-14
-                        out[key] = (
-                            np.asarray(tet[keep], dtype=np.int64),
-                            np.asarray(lambdas[keep], dtype=np.float64),
-                        )
-                        break
-                else:  # pragma: no cover - every half-grid point is in the cube.
-                    raise RuntimeError(f"failed to locate half-grid point {point}")
+                weights = (
+                    np.where(corners[:, 0] == 1, point[0], 1.0 - point[0])
+                    * np.where(corners[:, 1] == 1, point[1], 1.0 - point[1])
+                    * np.where(corners[:, 2] == 1, point[2], 1.0 - point[2])
+                )
+                key = int(ix2 * 9 + iy2 * 3 + iz2)
+                keep = np.abs(weights) > 1.0e-14
+                out[key] = (
+                    np.flatnonzero(keep).astype(np.int64, copy=False),
+                    np.asarray(weights[keep], dtype=np.float64),
+                )
     return out
 
 
-_HALF_GRID_TET_WEIGHTS = _precompute_half_grid_tet_weights()
+_HALF_GRID_TRANSFER_WEIGHTS = _precompute_half_grid_trilinear_weights()
 
 
 def _coalesce_entries(
@@ -268,8 +249,8 @@ def _adjacent_prolongation_entries(
         mask = keys == int(key)
         if not np.any(mask):
             continue
-        tet_vertices, weights = _HALF_GRID_TET_WEIGHTS[int(key)]
-        coarse_nodes = coarse_base[mask, None] + coarse_offsets[tet_vertices][None, :]
+        brick_vertices, weights = _HALF_GRID_TRANSFER_WEIGHTS[int(key)]
+        coarse_nodes = coarse_base[mask, None] + coarse_offsets[brick_vertices][None, :]
         fine_blocks = owned_blocks[mask]
         for comp in range(VECTOR_BLOCK_SIZE):
             fine_rows = 3 * fine_blocks + int(comp)
@@ -390,7 +371,7 @@ def build_he_pmg_hierarchy(
         prolongations=prolongations,
         restrictions=restrictions,
         build_metadata={
-            "kind": "structured_he_p1_pmg",
+            "kind": "structured_he_trilinear_pmg",
             "coarsest_level": int(coarsest_level),
             "finest_level": int(finest_level),
             "level_records": [
