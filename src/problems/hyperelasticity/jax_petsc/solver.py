@@ -114,6 +114,11 @@ def _export_state_if_requested(args, assembler, params, vec, step_records, comm)
     full_free_original = _gather_full_free_original(assembler, vec)
     export_params = params
     if bool(params.get("_distributed_local_data", False)):
+        if int(params.get("element_degree", 1)) != 1:
+            raise ValueError(
+                "HyperElasticity state export is currently implemented for "
+                "element_degree=1 only"
+            )
         if comm.rank != 0:
             return
         mesh_source = str(params.get("_distributed_mesh_source", "hdf5"))
@@ -269,6 +274,14 @@ def run(args):
         )
         or ("procedural" if problem_build_mode == "rank_local" else "hdf5")
     )
+    element_degree = int(
+        getattr(args, "he_element_degree", getattr(args, "element_degree", 1)) or 1
+    )
+    if element_degree not in {1, 4}:
+        raise ValueError(
+            f"HyperElasticity element degree {element_degree!r} is unsupported; "
+            "expected 1 or 4"
+        )
 
     mesh_obj = None
     if problem_build_mode == "rank_local":
@@ -285,8 +298,14 @@ def run(args):
             comm=comm,
             reorder_mode=element_reorder_mode,
             mesh_source=mesh_source,
+            element_degree=element_degree,
         )
     elif problem_build_mode == "replicated":
+        if element_degree != 1:
+            raise ValueError(
+                "problem_build_mode='replicated' currently supports only "
+                "HyperElasticity element_degree=1"
+            )
         if mesh_source != "hdf5":
             raise ValueError(
                 "problem_build_mode='replicated' currently supports only "
@@ -376,6 +395,12 @@ def run(args):
     pmg_hierarchy = None
     pmg_metadata: dict[str, object] | None = None
     if use_element_assembly and str(settings["pc_type"]) == "mg":
+        if element_degree != 1:
+            raise ValueError(
+                "HyperElasticity PCMG currently supports element_degree=1 only. "
+                "Use --pc-type gamg for P4 smoke/scaling until the P4->P2->P1 "
+                "same-mesh hierarchy is added."
+            )
         coarsest_level = choose_he_pmg_coarsest_level(
             finest_level=int(args.level),
             n_ranks=int(nprocs),
@@ -806,6 +831,7 @@ def run(args):
                     ),
                     "problem_build_mode": str(problem_build_mode),
                     "mesh_source": str(mesh_source),
+                    "element_degree": int(element_degree),
                     "rank_local_formula_layout": bool(
                         getattr(assembler, "_formula_layout", False)
                     ),

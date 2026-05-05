@@ -68,6 +68,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="HE rank-local element mode mesh source.",
     )
     parser.add_argument(
+        "--he-element-degree",
+        "--elem-degree",
+        dest="he_element_degree",
+        choices=(1, 4),
+        type=int,
+        default=1,
+        help="HE rank-local procedural element degree.",
+    )
+    parser.add_argument(
         "--distribution-strategy",
         choices=("overlap_p2p", "overlap_allgather"),
         default=None,
@@ -368,6 +377,7 @@ def _run_he(args):
         local_hessian_mode=args.local_hessian_mode,
         problem_build_mode=args.problem_build_mode,
         mesh_source=args.he_mesh_source,
+        he_element_degree=args.he_element_degree,
         distribution_strategy=args.distribution_strategy,
         assembly_backend=args.assembly_backend,
         he_pmg_coarsest_level=args.he_pmg_coarsest_level,

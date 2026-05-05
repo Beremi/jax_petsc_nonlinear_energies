@@ -16,13 +16,17 @@ from src.problems.hyperelasticity.jax_petsc.multigrid import (
     choose_he_pmg_coarsest_level,
 )
 from src.problems.hyperelasticity.support.mesh import (
+    HyperElasticityGrid,
     MeshHyperElasticity3D,
     _node_coordinates,
     _node_ijk,
+    generate_structured_lagrange_element_data_for_indices,
+    generate_structured_lagrange_elements_for_indices,
     generate_structured_elements_for_indices,
     generate_structured_element_data_for_indices,
     grid_for_level,
     load_rank_local_hyperelasticity,
+    n_free_dofs_for_element_degree,
     reordered_free_to_total_dofs,
     total_dofs_to_reordered_free,
 )
@@ -171,6 +175,77 @@ def test_hyperelasticity_procedural_mesh_matches_hdf5_rows_on_level1():
     np.testing.assert_allclose(dphiy, mesh.params["dphiy"], rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(dphiz, mesh.params["dphiz"], rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(vol, mesh.params["vol"], rtol=1e-12, atol=1e-18)
+
+
+def test_hyperelasticity_structured_p4_tets_fill_quarter_grid_on_one_cell():
+    grid = HyperElasticityGrid(
+        nx=1,
+        ny=1,
+        nz=1,
+        x_min=0.0,
+        x_max=1.0,
+        y_min=0.0,
+        y_max=1.0,
+        z_min=0.0,
+        z_max=1.0,
+    )
+    elem_idx = np.arange(6, dtype=np.int64)
+
+    elems = generate_structured_lagrange_elements_for_indices(elem_idx, grid, 4)
+    dphix, dphiy, dphiz, weights = generate_structured_lagrange_element_data_for_indices(
+        elem_idx,
+        grid,
+        4,
+    )
+
+    assert elems.shape == (6, 35)
+    assert np.unique(elems).size == 5 * 5 * 5
+    assert int(np.min(elems)) == 0
+    assert int(np.max(elems)) == 5 * 5 * 5 - 1
+    assert dphix.shape == (6, 24, 35)
+    assert dphiy.shape == (6, 24, 35)
+    assert dphiz.shape == (6, 24, 35)
+    assert weights.shape == (6, 24)
+    np.testing.assert_allclose(np.sum(weights), 1.0, rtol=1e-12, atol=1e-12)
+
+
+def test_hyperelasticity_rank_local_p4_formula_layout_builds_without_hdf5(monkeypatch):
+    import src.problems.hyperelasticity.support.mesh as he_mesh
+
+    def _forbidden(*_args, **_kwargs):
+        raise AssertionError("P4 procedural rank-local loader must not read full HDF5 data")
+
+    monkeypatch.setattr(he_mesh, "load_problem_hdf5", _forbidden)
+
+    params, adjacency, u_init = load_rank_local_hyperelasticity(
+        1,
+        comm=MPI.COMM_SELF,
+        reorder_mode="block_xyz",
+        mesh_source="procedural",
+        element_degree=4,
+    )
+    grid = params["_he_grid"]
+    n_free = n_free_dofs_for_element_degree(grid, 4)
+    probe = np.array([0, 1, 2, n_free - 3, n_free - 2, n_free - 1], dtype=np.int64)
+    total = reordered_free_to_total_dofs(probe, grid, "block_xyz", 4)
+
+    assert adjacency is None
+    assert params["element_degree"] == 4
+    assert int(params["_distributed_n_free"]) == n_free
+    assert params["_distributed_local_elems_scalar_np"].shape[1] == 35
+    assert params["_distributed_dphix"].shape[1:] == (24, 35)
+    assert params["_distributed_vol"].shape[1] == 24
+    np.testing.assert_array_equal(
+        total_dofs_to_reordered_free(total, grid, "block_xyz", 4),
+        probe,
+    )
+    np.testing.assert_allclose(
+        np.sum(params["_distributed_vol"]),
+        0.4 * 0.01 * 0.01,
+        rtol=1e-12,
+        atol=1e-14,
+    )
+    assert u_init.shape == (n_free,)
 
 
 def test_hyperelasticity_rank_local_procedural_matches_hdf5_source_level1():

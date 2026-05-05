@@ -128,6 +128,15 @@ def _build_parser(profile_defaults):
              "or read rank-local rows from HDF5",
     )
     parser.add_argument(
+        "--he_element_degree",
+        "--elem_degree",
+        dest="he_element_degree",
+        choices=(1, 4),
+        type=int,
+        default=1,
+        help="Element rank-local procedural element degree",
+    )
+    parser.add_argument(
         "--distribution_strategy",
         choices=("overlap_p2p", "overlap_allgather"),
         default=None,

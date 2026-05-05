@@ -68,8 +68,14 @@ def _make_he_local_energy_fns(part, state):
     dphix = jnp.array(part.local_elem_data["dphix"], dtype=jnp.float64)
     dphiy = jnp.array(part.local_elem_data["dphiy"], dtype=jnp.float64)
     dphiz = jnp.array(part.local_elem_data["dphiz"], dtype=jnp.float64)
-    vol = jnp.array(part.local_elem_data["vol"], dtype=jnp.float64)
-    vol_w = jnp.array(part.local_elem_data["vol"] * part.elem_weights, dtype=jnp.float64)
+    vol_np = np.asarray(part.local_elem_data["vol"], dtype=np.float64)
+    weights_np = np.asarray(part.elem_weights, dtype=np.float64)
+    vol = jnp.array(vol_np, dtype=jnp.float64)
+    if vol_np.ndim == 1:
+        vol_w_np = vol_np * weights_np
+    else:
+        vol_w_np = vol_np * weights_np[:, None]
+    vol_w = jnp.array(vol_w_np, dtype=jnp.float64)
 
     C1 = state["C1"]
     D1 = state["D1"]
@@ -103,7 +109,7 @@ def _make_he_element_hessian_jit(part, state):
 
     def element_energy(v_e, dphix_e, dphiy_e, dphiz_e, vol_e):
         W = _he_energy_density(v_e, dphix_e, dphiy_e, dphiz_e, C1, D1, use_abs_det)
-        return W * vol_e
+        return jnp.sum(W * vol_e)
 
     vmapped_hess = jax.vmap(jax.hessian(element_energy), in_axes=(0, 0, 0, 0, 0))
 

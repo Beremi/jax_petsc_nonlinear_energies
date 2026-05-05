@@ -74,13 +74,13 @@ class HyperElasticityGrid:
 def expand_tet_connectivity_to_dofs(elems2nodes):
     """Expand scalar-node tetra connectivity to flat 3-DOF connectivity.
 
-    scalar tet: [n0, n1, n2, n3]
-    dof tet:    [3*n0,3*n0+1,3*n0+2, ..., 3*n3+2]
+    scalar tet: [n0, n1, n2, ...]
+    dof tet:    [3*n0,3*n0+1,3*n0+2, ..., 3*nk+2]
     """
     elems2nodes = np.asarray(elems2nodes, dtype=np.int64)
     dof_offsets = np.arange(3, dtype=np.int64)
     return (3 * elems2nodes[:, :, None] + dof_offsets[None, None, :]).reshape(
-        elems2nodes.shape[0], 12
+        elems2nodes.shape[0], 3 * elems2nodes.shape[1]
     )
 
 
@@ -240,6 +240,276 @@ def generate_structured_element_data_for_indices(
     )
 
 
+def _require_supported_element_degree(element_degree: int) -> int:
+    degree = int(element_degree)
+    if degree not in {1, 4}:
+        raise ValueError(
+            f"HyperElasticity element_degree={degree!r} is not supported; "
+            "expected 1 or 4"
+        )
+    return degree
+
+
+def _degree_node_shape(
+    grid: HyperElasticityGrid,
+    element_degree: int,
+) -> tuple[int, int, int]:
+    degree = _require_supported_element_degree(int(element_degree))
+    return (
+        degree * int(grid.nx) + 1,
+        degree * int(grid.ny) + 1,
+        degree * int(grid.nz) + 1,
+    )
+
+
+def n_nodes_for_element_degree(
+    grid: HyperElasticityGrid,
+    element_degree: int,
+) -> int:
+    qnx1, qny1, qnz1 = _degree_node_shape(grid, int(element_degree))
+    return int(qnx1) * int(qny1) * int(qnz1)
+
+
+def n_free_nodes_for_element_degree(
+    grid: HyperElasticityGrid,
+    element_degree: int,
+) -> int:
+    degree = _require_supported_element_degree(int(element_degree))
+    return (degree * int(grid.nx) - 1) * (
+        degree * int(grid.ny) + 1
+    ) * (degree * int(grid.nz) + 1)
+
+
+def n_total_dofs_for_element_degree(
+    grid: HyperElasticityGrid,
+    element_degree: int,
+) -> int:
+    return 3 * n_nodes_for_element_degree(grid, int(element_degree))
+
+
+def n_free_dofs_for_element_degree(
+    grid: HyperElasticityGrid,
+    element_degree: int,
+) -> int:
+    return 3 * n_free_nodes_for_element_degree(grid, int(element_degree))
+
+
+def _degree_node_ijk(
+    node_ids: np.ndarray,
+    grid: HyperElasticityGrid,
+    element_degree: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    node = np.asarray(node_ids, dtype=np.int64)
+    qnx1, qny1, _ = _degree_node_shape(grid, int(element_degree))
+    ix = node % int(qnx1)
+    plane = node // int(qnx1)
+    iy = plane % int(qny1)
+    iz = plane // int(qny1)
+    return ix, iy, iz
+
+
+def _degree_node_coordinates(
+    node_ids: np.ndarray,
+    grid: HyperElasticityGrid,
+    element_degree: int,
+) -> np.ndarray:
+    degree = _require_supported_element_degree(int(element_degree))
+    ix, iy, iz = _degree_node_ijk(np.asarray(node_ids, dtype=np.int64), grid, degree)
+    coords = np.empty((ix.size, 3), dtype=np.float64)
+    coords[:, 0] = float(grid.x_min) + (float(grid.x_max) - float(grid.x_min)) * (
+        ix.astype(np.float64) / float(degree * int(grid.nx))
+    )
+    coords[:, 1] = float(grid.y_min) + (float(grid.y_max) - float(grid.y_min)) * (
+        iy.astype(np.float64) / float(degree * int(grid.ny))
+    )
+    coords[:, 2] = float(grid.z_min) + (float(grid.z_max) - float(grid.z_min)) * (
+        iz.astype(np.float64) / float(degree * int(grid.nz))
+    )
+    return coords
+
+
+def _tetra_lagrange_node_tuples(element_degree: int) -> tuple[tuple[int, int, int, int], ...]:
+    from src.problems.slope_stability_3d.support.simplex_lagrange import (
+        tetra_lagrange_node_tuples,
+    )
+
+    return tetra_lagrange_node_tuples(int(element_degree))
+
+
+def generate_structured_lagrange_elements_for_indices(
+    elem_indices: np.ndarray,
+    grid: HyperElasticityGrid,
+    element_degree: int,
+) -> np.ndarray:
+    degree = _require_supported_element_degree(int(element_degree))
+    if degree == 1:
+        return generate_structured_elements_for_indices(elem_indices, grid)
+
+    elem = np.asarray(elem_indices, dtype=np.int64).ravel()
+    if elem.size == 0:
+        return np.zeros((0, len(_tetra_lagrange_node_tuples(degree))), dtype=np.int64)
+
+    cell = elem // int(TET_TEMPLATE.shape[0])
+    tet = elem % int(TET_TEMPLATE.shape[0])
+    cx = cell % int(grid.nx)
+    plane = cell // int(grid.nx)
+    cy = plane % int(grid.ny)
+    cz = plane // int(grid.ny)
+
+    cube_offsets_ijk = np.array(
+        [
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [1, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [0, 1, 1],
+            [1, 1, 1],
+        ],
+        dtype=np.int64,
+    )
+    base_ijk = np.stack((cx, cy, cz), axis=1)
+    cube_ijk = base_ijk[:, None, :] + cube_offsets_ijk[None, :, :]
+    tet_ijk = cube_ijk[np.arange(elem.size)[:, None], TET_TEMPLATE[tet]]
+
+    tuples = np.asarray(_tetra_lagrange_node_tuples(degree), dtype=np.int64)
+    qijk = np.einsum("ap,epd->ead", tuples, tet_ijk)
+    qnx1, qny1, _ = _degree_node_shape(grid, degree)
+    return (
+        (qijk[:, :, 2] * int(qny1) + qijk[:, :, 1]) * int(qnx1)
+        + qijk[:, :, 0]
+    ).astype(np.int64, copy=False)
+
+
+def _quadrature_volume_3d(element_degree: int) -> tuple[np.ndarray, np.ndarray]:
+    from src.problems.slope_stability_3d.support.mesh import _quadrature_volume_3d as _quad
+
+    return _quad(int(element_degree))
+
+
+def _reference_lagrange_element_patterns(
+    grid: HyperElasticityGrid,
+    element_degree: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    from src.problems.slope_stability_3d.support.simplex_lagrange import (
+        evaluate_tetra_lagrange_basis,
+    )
+
+    degree = _require_supported_element_degree(int(element_degree))
+    if degree == 1:
+        dphix, dphiy, dphiz, vol = _reference_gradient_patterns(grid)
+        return dphix[:, None, :], dphiy[:, None, :], dphiz[:, None, :], vol[:, None]
+
+    dx = (float(grid.x_max) - float(grid.x_min)) / float(grid.nx)
+    dy = (float(grid.y_max) - float(grid.y_min)) / float(grid.ny)
+    dz = (float(grid.z_max) - float(grid.z_min)) / float(grid.nz)
+    cube = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [dx, 0.0, 0.0],
+            [0.0, dy, 0.0],
+            [dx, dy, 0.0],
+            [0.0, 0.0, dz],
+            [dx, 0.0, dz],
+            [0.0, dy, dz],
+            [dx, dy, dz],
+        ],
+        dtype=np.float64,
+    )
+    tuples = np.asarray(_tetra_lagrange_node_tuples(degree), dtype=np.float64)
+    xi, weights = _quadrature_volume_3d(degree)
+    _, dhat1, dhat2, dhat3 = evaluate_tetra_lagrange_basis(degree, xi)
+    n_tets = int(TET_TEMPLATE.shape[0])
+    n_q = int(xi.shape[1])
+    n_p = int(tuples.shape[0])
+
+    dphix = np.empty((n_tets, n_q, n_p), dtype=np.float64)
+    dphiy = np.empty((n_tets, n_q, n_p), dtype=np.float64)
+    dphiz = np.empty((n_tets, n_q, n_p), dtype=np.float64)
+    quad_weight = np.empty((n_tets, n_q), dtype=np.float64)
+
+    for tet_id, tet_nodes in enumerate(TET_TEMPLATE):
+        vertices = cube[np.asarray(tet_nodes, dtype=np.int64)]
+        elem_coords = (tuples @ vertices) / float(degree)
+        xcoord = elem_coords[:, 0]
+        ycoord = elem_coords[:, 1]
+        zcoord = elem_coords[:, 2]
+        for q in range(n_q):
+            dh1 = np.asarray(dhat1[:, q], dtype=np.float64)
+            dh2 = np.asarray(dhat2[:, q], dtype=np.float64)
+            dh3 = np.asarray(dhat3[:, q], dtype=np.float64)
+
+            j11 = float(xcoord @ dh1)
+            j12 = float(ycoord @ dh1)
+            j13 = float(zcoord @ dh1)
+            j21 = float(xcoord @ dh2)
+            j22 = float(ycoord @ dh2)
+            j23 = float(zcoord @ dh2)
+            j31 = float(xcoord @ dh3)
+            j32 = float(ycoord @ dh3)
+            j33 = float(zcoord @ dh3)
+            det_j = (
+                j11 * (j22 * j33 - j23 * j32)
+                - j12 * (j21 * j33 - j23 * j31)
+                + j13 * (j21 * j32 - j22 * j31)
+            )
+            inv_det = 1.0 / det_j
+            dphix[tet_id, q, :] = (
+                ((j22 * j33 - j23 * j32) * dh1)
+                - ((j12 * j33 - j13 * j32) * dh2)
+                + ((j12 * j23 - j13 * j22) * dh3)
+            ) * inv_det
+            dphiy[tet_id, q, :] = (
+                (-(j21 * j33 - j23 * j31) * dh1)
+                + ((j11 * j33 - j13 * j31) * dh2)
+                - ((j11 * j23 - j13 * j21) * dh3)
+            ) * inv_det
+            dphiz[tet_id, q, :] = (
+                ((j21 * j32 - j22 * j31) * dh1)
+                - ((j11 * j32 - j12 * j31) * dh2)
+                + ((j11 * j22 - j12 * j21) * dh3)
+            ) * inv_det
+            quad_weight[tet_id, q] = abs(det_j) * float(weights[q])
+
+    dphix[np.abs(dphix) < 1e-12] = 0.0
+    dphiy[np.abs(dphiy) < 1e-12] = 0.0
+    dphiz[np.abs(dphiz) < 1e-12] = 0.0
+    return dphix, dphiy, dphiz, quad_weight
+
+
+def generate_structured_lagrange_element_data_for_indices(
+    elem_indices: np.ndarray,
+    grid: HyperElasticityGrid,
+    element_degree: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    degree = _require_supported_element_degree(int(element_degree))
+    if degree == 1:
+        return generate_structured_element_data_for_indices(elem_indices, grid)
+
+    elem = np.asarray(elem_indices, dtype=np.int64).ravel()
+    n_p = len(_tetra_lagrange_node_tuples(degree))
+    if elem.size == 0:
+        xi, _ = _quadrature_volume_3d(degree)
+        n_q = int(xi.shape[1])
+        return (
+            np.zeros((0, n_q, n_p), dtype=np.float64),
+            np.zeros((0, n_q, n_p), dtype=np.float64),
+            np.zeros((0, n_q, n_p), dtype=np.float64),
+            np.zeros((0, n_q), dtype=np.float64),
+        )
+    tet = elem % int(TET_TEMPLATE.shape[0])
+    dphix_pattern, dphiy_pattern, dphiz_pattern, weight_pattern = (
+        _reference_lagrange_element_patterns(grid, degree)
+    )
+    return (
+        np.asarray(dphix_pattern[tet], dtype=np.float64),
+        np.asarray(dphiy_pattern[tet], dtype=np.float64),
+        np.asarray(dphiz_pattern[tet], dtype=np.float64),
+        np.asarray(weight_pattern[tet], dtype=np.float64),
+    )
+
+
 def _index_dtype(n_free: int) -> type[np.integer]:
     return np.int32 if int(n_free) <= int(np.iinfo(np.int32).max) else np.int64
 
@@ -272,7 +542,12 @@ def _free_block_to_node_ids(
     block_ids: np.ndarray,
     grid: HyperElasticityGrid,
     reorder_mode: str,
+    element_degree: int = 1,
 ) -> np.ndarray:
+    degree = _require_supported_element_degree(int(element_degree))
+    if degree != 1:
+        return _free_block_to_degree_node_ids(block_ids, grid, reorder_mode, degree)
+
     block = np.asarray(block_ids, dtype=np.int64)
     mode = str(reorder_mode)
     if mode == "none":
@@ -294,15 +569,46 @@ def _free_block_to_node_ids(
     return (iz * int(grid.ny1) + iy) * int(grid.nx1) + ix
 
 
+def _free_block_to_degree_node_ids(
+    block_ids: np.ndarray,
+    grid: HyperElasticityGrid,
+    reorder_mode: str,
+    element_degree: int,
+) -> np.ndarray:
+    degree = _require_supported_element_degree(int(element_degree))
+    block = np.asarray(block_ids, dtype=np.int64)
+    qnx1, qny1, qnz1 = _degree_node_shape(grid, degree)
+    qnx = int(qnx1) - 1
+    mode = str(reorder_mode)
+    if mode == "none":
+        x_inner = block % (qnx - 1)
+        plane = block // (qnx - 1)
+        iy = plane % int(qny1)
+        iz = plane // int(qny1)
+    elif mode == "block_xyz":
+        iz = block % int(qnz1)
+        tmp = block // int(qnz1)
+        iy = tmp % int(qny1)
+        x_inner = tmp // int(qny1)
+    else:
+        raise ValueError(
+            f"rank-local HyperElasticity supports element_reorder_mode='none' "
+            f"or 'block_xyz', got {mode!r}"
+        )
+    ix = x_inner + 1
+    return (iz * int(qny1) + iy) * int(qnx1) + ix
+
+
 def reordered_free_to_total_dofs(
     reord_dofs: np.ndarray,
     grid: HyperElasticityGrid,
     reorder_mode: str,
+    element_degree: int = 1,
 ) -> np.ndarray:
     reord = np.asarray(reord_dofs, dtype=np.int64)
     block = reord // 3
     comp = reord % 3
-    nodes = _free_block_to_node_ids(block, grid, str(reorder_mode))
+    nodes = _free_block_to_node_ids(block, grid, str(reorder_mode), int(element_degree))
     return 3 * nodes + comp
 
 
@@ -310,21 +616,31 @@ def total_dofs_to_reordered_free(
     total_dofs: np.ndarray,
     grid: HyperElasticityGrid,
     reorder_mode: str,
+    element_degree: int = 1,
 ) -> np.ndarray:
+    degree = _require_supported_element_degree(int(element_degree))
     total = np.asarray(total_dofs, dtype=np.int64)
     node = total // 3
     comp = total % 3
-    ix, iy, iz = _node_ijk(node, grid)
-    free = (ix > 0) & (ix < int(grid.nx))
+    if degree == 1:
+        ix, iy, iz = _node_ijk(node, grid)
+        qnx = int(grid.nx)
+        qny1 = int(grid.ny1)
+        qnz1 = int(grid.nz1)
+    else:
+        ix, iy, iz = _degree_node_ijk(node, grid, degree)
+        qnx1, qny1, qnz1 = _degree_node_shape(grid, degree)
+        qnx = int(qnx1) - 1
+    free = (ix > 0) & (ix < qnx)
     out = np.full(total.shape, -1, dtype=np.int64)
     if not np.any(free):
         return out
     x_inner = ix[free] - 1
     mode = str(reorder_mode)
     if mode == "none":
-        block = (iz[free] * int(grid.ny1) + iy[free]) * (int(grid.nx) - 1) + x_inner
+        block = (iz[free] * int(qny1) + iy[free]) * (qnx - 1) + x_inner
     elif mode == "block_xyz":
-        block = (x_inner * int(grid.ny1) + iy[free]) * int(grid.nz1) + iz[free]
+        block = (x_inner * int(qny1) + iy[free]) * int(qnz1) + iz[free]
     else:
         raise ValueError(
             f"rank-local HyperElasticity supports element_reorder_mode='none' "
@@ -345,19 +661,30 @@ def _structured_freedofs(grid: HyperElasticityGrid) -> np.ndarray:
 def _local_candidate_element_indices(
     owned_node_ids: np.ndarray,
     grid: HyperElasticityGrid,
+    element_degree: int = 1,
 ) -> np.ndarray:
     if owned_node_ids.size == 0:
         return np.zeros(0, dtype=np.int64)
-    ix, iy, iz = _node_ijk(owned_node_ids, grid)
+    degree = _require_supported_element_degree(int(element_degree))
+    if degree == 1:
+        ix, iy, iz = _node_ijk(owned_node_ids, grid)
+        cell_x = ix
+        cell_y = iy
+        cell_z = iz
+    else:
+        ix, iy, iz = _degree_node_ijk(owned_node_ids, grid, degree)
+        cell_x = ix // degree
+        cell_y = iy // degree
+        cell_z = iz // degree
     cell_batches = []
     for dx in (-1, 0):
-        cx = ix + dx
+        cx = cell_x + dx
         valid_x = (cx >= 0) & (cx < int(grid.nx))
         for dy in (-1, 0):
-            cy = iy + dy
+            cy = cell_y + dy
             valid_xy = valid_x & (cy >= 0) & (cy < int(grid.ny))
             for dz in (-1, 0):
-                cz = iz + dz
+                cz = cell_z + dz
                 valid = valid_xy & (cz >= 0) & (cz < int(grid.nz))
                 if np.any(valid):
                     cell_batches.append(
@@ -388,14 +715,22 @@ def _values_for_total_dofs(
     total_dofs: np.ndarray,
     grid: HyperElasticityGrid,
     angle: float,
+    element_degree: int = 1,
 ) -> np.ndarray:
+    degree = _require_supported_element_degree(int(element_degree))
     total = np.asarray(total_dofs, dtype=np.int64)
     node = total // 3
     comp = total % 3
-    ix, _, _ = _node_ijk(node, grid)
-    coords = _node_coordinates(node, grid)
+    if degree == 1:
+        ix, _, _ = _node_ijk(node, grid)
+        right_ix = int(grid.nx)
+        coords = _node_coordinates(node, grid)
+    else:
+        ix, _, _ = _degree_node_ijk(node, grid, degree)
+        right_ix = degree * int(grid.nx)
+        coords = _degree_node_coordinates(node, grid, degree)
     values = coords[np.arange(total.size), comp].copy()
-    right = ix == int(grid.nx)
+    right = ix == int(right_ix)
     if np.any(right):
         y_rot = np.cos(float(angle)) * coords[right, 1] + np.sin(float(angle)) * coords[right, 2]
         z_rot = -np.sin(float(angle)) * coords[right, 1] + np.cos(float(angle)) * coords[right, 2]
@@ -414,16 +749,23 @@ def local_dirichlet_values_from_reference(params: dict[str, object], angle: floa
         np.asarray(params["_distributed_local_total_nodes"], dtype=np.int64),
         grid,
         float(angle),
+        int(params.get("element_degree", 1)),
     )
 
 
 def _owned_nullspace(
     owned_total_dofs: np.ndarray,
     grid: HyperElasticityGrid,
+    element_degree: int = 1,
 ) -> np.ndarray:
+    degree = _require_supported_element_degree(int(element_degree))
     node = np.asarray(owned_total_dofs, dtype=np.int64) // 3
     comp = np.asarray(owned_total_dofs, dtype=np.int64) % 3
-    coords = _node_coordinates(node, grid)
+    coords = (
+        _node_coordinates(node, grid)
+        if degree == 1
+        else _degree_node_coordinates(node, grid, degree)
+    )
     kernel = np.zeros((owned_total_dofs.size, 6), dtype=np.float64)
     x = coords[:, 0]
     y = coords[:, 1]
@@ -474,8 +816,10 @@ def load_rank_local_hyperelasticity(
     comm: MPI.Comm,
     reorder_mode: str = "block_xyz",
     mesh_source: str = "procedural",
+    element_degree: int = 1,
 ) -> tuple[dict[str, object], None, np.ndarray]:
     """Build only this rank's HyperElasticity overlap domain."""
+    degree = _require_supported_element_degree(int(element_degree))
     mode = str(reorder_mode)
     if mode not in {"none", "block_xyz"}:
         raise ValueError(
@@ -488,6 +832,11 @@ def load_rank_local_hyperelasticity(
             "rank-local HyperElasticity mesh_source must be 'procedural' or "
             f"'hdf5', got {source!r}"
         )
+    if degree != 1 and source != "procedural":
+        raise ValueError(
+            "rank-local HyperElasticity element_degree=4 currently requires "
+            "mesh_source='procedural'"
+        )
 
     filename = mesh_data_path("HyperElasticity", f"HyperElasticity_level{int(mesh_level)}.h5")
     grid = (
@@ -495,20 +844,25 @@ def load_rank_local_hyperelasticity(
         if source == "procedural"
         else _read_grid_metadata(filename, int(mesh_level))
     )
-    n_free = int(grid.n_free_dofs)
-    n_total = int(grid.n_total_dofs)
+    n_free = int(n_free_dofs_for_element_degree(grid, degree))
+    n_total = int(n_total_dofs_for_element_degree(grid, degree))
     dtype = _index_dtype(n_free)
     lo, hi = petsc_ownership_range(n_free, int(comm.rank), int(comm.size), block_size=3)
     owned_reord = np.arange(lo, hi, dtype=np.int64)
-    owned_total_dofs = reordered_free_to_total_dofs(owned_reord, grid, mode)
+    owned_total_dofs = reordered_free_to_total_dofs(owned_reord, grid, mode, degree)
     owned_node_ids = np.unique(owned_total_dofs // 3)
-    local_elem_idx = _local_candidate_element_indices(owned_node_ids, grid)
+    local_elem_idx = _local_candidate_element_indices(owned_node_ids, grid, degree)
 
     if source == "procedural":
-        elems_scalar = generate_structured_elements_for_indices(local_elem_idx, grid)
-        dphix, dphiy, dphiz, vol = generate_structured_element_data_for_indices(
+        elems_scalar = generate_structured_lagrange_elements_for_indices(
             local_elem_idx,
             grid,
+            degree,
+        )
+        dphix, dphiy, dphiz, vol = generate_structured_lagrange_element_data_for_indices(
+            local_elem_idx,
+            grid,
+            degree,
         )
         c1 = C1
         d1 = D1
@@ -526,7 +880,7 @@ def load_rank_local_hyperelasticity(
             d1 = float(handle["D1"][()])
 
     elems_total = expand_tet_connectivity_to_dofs(elems_scalar)
-    elems_reordered = total_dofs_to_reordered_free(elems_total, grid, mode)
+    elems_reordered = total_dofs_to_reordered_free(elems_total, grid, mode, degree)
     exact_local = np.any((elems_reordered >= int(lo)) & (elems_reordered < int(hi)), axis=1)
     if np.any(~exact_local):
         local_elem_idx = local_elem_idx[exact_local]
@@ -551,7 +905,7 @@ def load_rank_local_hyperelasticity(
         )
         elems_scalar_np = scalar_inverse.reshape(elems_scalar.shape).astype(np.int32)
 
-    local_total_to_free = total_dofs_to_reordered_free(local_total_dofs, grid, mode)
+    local_total_to_free = total_dofs_to_reordered_free(local_total_dofs, grid, mode, degree)
     masked = np.where(elems_reordered >= 0, elems_reordered, np.int64(n_free))
     elem_min = np.min(masked, axis=1) if elems_reordered.size else np.zeros(0, dtype=np.int64)
     valid = elem_min < int(n_free)
@@ -565,12 +919,17 @@ def load_rank_local_hyperelasticity(
         )
     local_energy_weights = (local_elem_owner == int(comm.rank)).astype(np.float64)
     owned_block_ids = np.arange(lo // 3, hi // 3, dtype=np.int64)
-    owned_block_nodes = _free_block_to_node_ids(owned_block_ids, grid, mode)
-    owned_block_coordinates = _node_coordinates(owned_block_nodes, grid)
+    owned_block_nodes = _free_block_to_node_ids(owned_block_ids, grid, mode, degree)
+    owned_block_coordinates = (
+        _node_coordinates(owned_block_nodes, grid)
+        if degree == 1
+        else _degree_node_coordinates(owned_block_nodes, grid, degree)
+    )
     params: dict[str, object] = {
         "freedofs": np.zeros(0, dtype=dtype),
         "C1": c1,
         "D1": d1,
+        "element_degree": int(degree),
         "_he_grid": grid,
         "_distributed_mesh_source": source,
         "_distributed_formula_layout": True,
@@ -594,11 +953,13 @@ def load_rank_local_hyperelasticity(
         "_distributed_dphiz": dphiz,
         "_distributed_vol": vol,
         "_distributed_dirichlet_ref_local": _values_for_total_dofs(
-            local_total_dofs, grid, 0.0
+            local_total_dofs, grid, 0.0, degree
         ),
-        "_distributed_u_init_owned": _values_for_total_dofs(owned_total_dofs, grid, 0.0),
+        "_distributed_u_init_owned": _values_for_total_dofs(
+            owned_total_dofs, grid, 0.0, degree
+        ),
         "_distributed_owned_block_coordinates": owned_block_coordinates,
-        "_distributed_owned_nullspace": _owned_nullspace(owned_total_dofs, grid),
+        "_distributed_owned_nullspace": _owned_nullspace(owned_total_dofs, grid, degree),
         "_distributed_total_dofs": int(n_total),
     }
     return params, None, np.asarray(params["_distributed_u_init_owned"], dtype=np.float64)
