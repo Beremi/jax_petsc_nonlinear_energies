@@ -428,6 +428,16 @@ larger cap for a full solve.
   --ranks 8 16 32 --oversubscribe
 ```
 
+Karolina full-node smoke/scaling submissions use the same solver profile with
+`128` MPI ranks per CPU node and set `pc_redundant_number` to the node count, so
+the coarse solve is replicated once per physical node.
+
+```bash
+DRY_RUN=1 bash experiments/runners/submit_karolina_plasticity3d_mumps_pmg_scaling.sh
+SBATCH_TEST_ONLY=1 bash experiments/runners/submit_karolina_plasticity3d_mumps_pmg_scaling.sh
+bash experiments/runners/submit_karolina_plasticity3d_mumps_pmg_scaling.sh
+```
+
 Run the documented from-scratch `P2(L1), lambda = 1.6` solve with an elastic
 initial guess:
 
