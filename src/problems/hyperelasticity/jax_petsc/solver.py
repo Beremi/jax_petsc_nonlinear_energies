@@ -27,6 +27,12 @@ from src.problems.hyperelasticity.jax_petsc.parallel_hessian_dof import (
 from src.problems.hyperelasticity.jax_petsc.reordered_element_assembler import (
     HEReorderedElementAssembler,
 )
+from src.problems.hyperelasticity.jax_petsc.multigrid import (
+    HEPmgSmootherConfig,
+    build_he_pmg_hierarchy,
+    choose_he_pmg_coarsest_level,
+    configure_he_pmg,
+)
 from src.problems.hyperelasticity.support.mesh import (
     MeshHyperElasticity3D,
     load_rank_local_hyperelasticity,
@@ -348,6 +354,97 @@ def run(args):
     ksp = assembler.ksp
     A = assembler.A
     pc = ksp.getPC()
+    pmg_hierarchy = None
+    pmg_metadata: dict[str, object] | None = None
+    if use_element_assembly and str(settings["pc_type"]) == "mg":
+        coarsest_level = choose_he_pmg_coarsest_level(
+            finest_level=int(args.level),
+            n_ranks=int(nprocs),
+            requested=getattr(args, "he_pmg_coarsest_level", 1),
+            min_dofs_per_rank=int(getattr(args, "he_pmg_auto_min_dofs_per_rank", 128)),
+        )
+        t_pmg0 = time.perf_counter()
+        pmg_hierarchy = build_he_pmg_hierarchy(
+            finest_level=int(args.level),
+            coarsest_level=int(coarsest_level),
+            reorder_mode=element_reorder_mode,
+            comm=comm,
+        )
+        configure_he_pmg(
+            ksp,
+            pmg_hierarchy,
+            smoother=HEPmgSmootherConfig(
+                ksp_type=str(getattr(args, "he_pmg_smoother_ksp_type", "richardson")),
+                pc_type=str(getattr(args, "he_pmg_smoother_pc_type", "jacobi")),
+                steps=int(getattr(args, "he_pmg_smoother_steps", 2)),
+            ),
+            coarse_ksp_type=(
+                None
+                if getattr(args, "he_pmg_coarse_ksp_type", None) in {None, ""}
+                else str(getattr(args, "he_pmg_coarse_ksp_type"))
+            ),
+            coarse_pc_type=str(getattr(args, "he_pmg_coarse_pc_type", "hypre")),
+            coarse_redundant_number=int(
+                getattr(args, "he_pmg_coarse_redundant_number", 0)
+            ),
+            coarse_telescope_reduction_factor=int(
+                getattr(args, "he_pmg_coarse_telescope_reduction_factor", 0)
+            ),
+            coarse_factor_solver_type=(
+                None
+                if getattr(args, "he_pmg_coarse_factor_solver_type", None) in {None, ""}
+                else str(getattr(args, "he_pmg_coarse_factor_solver_type"))
+            ),
+            coarse_hypre_nodal_coarsen=int(
+                getattr(args, "he_pmg_coarse_hypre_nodal_coarsen", 6)
+            ),
+            coarse_hypre_vec_interp_variant=int(
+                getattr(args, "he_pmg_coarse_hypre_vec_interp_variant", 3)
+            ),
+            coarse_hypre_strong_threshold=getattr(
+                args, "he_pmg_coarse_hypre_strong_threshold", None
+            ),
+            coarse_hypre_coarsen_type=getattr(
+                args, "he_pmg_coarse_hypre_coarsen_type", None
+            ),
+            coarse_hypre_max_iter=int(
+                getattr(args, "he_pmg_coarse_hypre_max_iter", 2)
+            ),
+            coarse_hypre_tol=float(getattr(args, "he_pmg_coarse_hypre_tol", 0.0)),
+            coarse_hypre_relax_type_all=getattr(
+                args,
+                "he_pmg_coarse_hypre_relax_type_all",
+                "symmetric-SOR/Jacobi",
+            ),
+            galerkin=str(getattr(args, "he_pmg_galerkin", "both")),
+        )
+        pmg_metadata = dict(pmg_hierarchy.build_metadata)
+        pmg_metadata["configure_time"] = float(time.perf_counter() - t_pmg0)
+        pmg_metadata["coarsest_level_resolved"] = int(coarsest_level)
+        pmg_metadata["coarsest_level_requested"] = str(
+            getattr(args, "he_pmg_coarsest_level", 1)
+        )
+        pmg_metadata["auto_min_dofs_per_rank"] = int(
+            getattr(args, "he_pmg_auto_min_dofs_per_rank", 128)
+        )
+        pmg_metadata["smoother"] = {
+            "ksp_type": str(getattr(args, "he_pmg_smoother_ksp_type", "richardson")),
+            "pc_type": str(getattr(args, "he_pmg_smoother_pc_type", "jacobi")),
+            "steps": int(getattr(args, "he_pmg_smoother_steps", 2)),
+        }
+        pmg_metadata["coarse_solver"] = {
+            "ksp_type": str(getattr(args, "he_pmg_coarse_ksp_type", "") or ""),
+            "pc_type": str(getattr(args, "he_pmg_coarse_pc_type", "hypre")),
+            "redundant_number": int(
+                getattr(args, "he_pmg_coarse_redundant_number", 0)
+            ),
+            "telescope_reduction_factor": int(
+                getattr(args, "he_pmg_coarse_telescope_reduction_factor", 0)
+            ),
+            "factor_solver_type": str(
+                getattr(args, "he_pmg_coarse_factor_solver_type", "") or ""
+            ),
+        }
 
     gamg_coords = None
     if settings["pc_type"] == "gamg" and settings["gamg_set_coordinates"]:
@@ -644,6 +741,8 @@ def run(args):
             x_step_start.destroy()
             x.destroy()
             assembler.cleanup()
+            if pmg_hierarchy is not None:
+                pmg_hierarchy.cleanup()
 
     return build_load_step_result(
         mesh_level=int(args.level),
@@ -690,6 +789,7 @@ def run(args):
                     "rank_local_formula_layout": bool(
                         getattr(assembler, "_formula_layout", False)
                     ),
+                    "pmg_hierarchy": pmg_metadata,
                     "assembler_setup_by_rank": assembler_setup_report,
                     "assembler_memory_by_rank": assembler_memory_report,
                     "assembler": assembler.__class__.__name__,

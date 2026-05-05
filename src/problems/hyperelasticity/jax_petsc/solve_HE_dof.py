@@ -132,6 +132,43 @@ def _build_parser(profile_defaults):
         default=None,
         help="Element mode only: PETSc COO preallocation/value insertion backend",
     )
+    parser.add_argument(
+        "--he_pmg_coarsest_level",
+        type=str,
+        default="1",
+        help="HE PCMG coarsest level, or 'auto' to choose from MPI rank count",
+    )
+    parser.add_argument(
+        "--he_pmg_auto_min_dofs_per_rank",
+        type=int,
+        default=128,
+        help="Minimum coarse-grid free DOFs per rank used by --he_pmg_coarsest_level auto",
+    )
+    parser.add_argument("--he_pmg_smoother_ksp_type", type=str, default="richardson")
+    parser.add_argument("--he_pmg_smoother_pc_type", type=str, default="jacobi")
+    parser.add_argument("--he_pmg_smoother_steps", type=int, default=2)
+    parser.add_argument("--he_pmg_coarse_ksp_type", type=str, default="")
+    parser.add_argument("--he_pmg_coarse_pc_type", type=str, default="hypre")
+    parser.add_argument("--he_pmg_coarse_redundant_number", type=int, default=0)
+    parser.add_argument("--he_pmg_coarse_telescope_reduction_factor", type=int, default=0)
+    parser.add_argument("--he_pmg_coarse_factor_solver_type", type=str, default="")
+    parser.add_argument("--he_pmg_coarse_hypre_nodal_coarsen", type=int, default=6)
+    parser.add_argument("--he_pmg_coarse_hypre_vec_interp_variant", type=int, default=3)
+    parser.add_argument("--he_pmg_coarse_hypre_strong_threshold", type=float, default=None)
+    parser.add_argument("--he_pmg_coarse_hypre_coarsen_type", type=str, default="")
+    parser.add_argument("--he_pmg_coarse_hypre_max_iter", type=int, default=2)
+    parser.add_argument("--he_pmg_coarse_hypre_tol", type=float, default=0.0)
+    parser.add_argument(
+        "--he_pmg_coarse_hypre_relax_type_all",
+        type=str,
+        default="symmetric-SOR/Jacobi",
+    )
+    parser.add_argument(
+        "--he_pmg_galerkin",
+        choices=("both", "pmat", "mat"),
+        default="both",
+        help="PETSc PCMG Galerkin operator policy",
+    )
 
     parser.add_argument("--tolf", type=float, default=1e-4, help="Energy-change tolerance")
     parser.add_argument("--tolg", type=float, default=1e-3, help="Gradient-norm tolerance")

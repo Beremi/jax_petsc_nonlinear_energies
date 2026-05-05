@@ -11,8 +11,13 @@ from src.core.petsc.reordered_element_base import (
 from src.problems.hyperelasticity.jax_petsc.reordered_element_assembler import (
     HEReorderedElementAssembler,
 )
+from src.problems.hyperelasticity.jax_petsc.multigrid import (
+    build_he_pmg_hierarchy,
+    choose_he_pmg_coarsest_level,
+)
 from src.problems.hyperelasticity.support.mesh import (
     MeshHyperElasticity3D,
+    _node_ijk,
     load_rank_local_hyperelasticity,
     reordered_free_to_total_dofs,
     total_dofs_to_reordered_free,
@@ -212,3 +217,51 @@ def test_hyperelasticity_rank_local_matches_replicated_coo_on_level1():
         x_dist.destroy()
         replicated.cleanup()
         rank_local.cleanup()
+
+
+def test_hyperelasticity_pmg_auto_coarsest_level_scales_with_rank_count():
+    assert choose_he_pmg_coarsest_level(
+        finest_level=4,
+        n_ranks=16,
+        requested="auto",
+        min_dofs_per_rank=128,
+    ) == 1
+    assert choose_he_pmg_coarsest_level(
+        finest_level=4,
+        n_ranks=512,
+        requested="auto",
+        min_dofs_per_rank=128,
+    ) == 3
+
+
+def test_hyperelasticity_pmg_transfer_preserves_partitioned_row_shape():
+    hierarchy = build_he_pmg_hierarchy(
+        finest_level=2,
+        coarsest_level=1,
+        reorder_mode="block_xyz",
+        comm=MPI.COMM_SELF,
+    )
+    try:
+        coarse = hierarchy.levels[0]
+        fine = hierarchy.levels[1]
+        prolong = hierarchy.prolongations[0]
+        assert prolong.getSize() == (fine.n_free, coarse.n_free)
+
+        indptr, _, data = prolong.getValuesCSR()
+        row_sums = np.zeros(fine.n_free, dtype=np.float64)
+        nonempty = indptr[1:] > indptr[:-1]
+        row_sums[nonempty] = np.add.reduceat(data, indptr[:-1][nonempty])
+
+        fine_total = reordered_free_to_total_dofs(
+            np.arange(fine.n_free, dtype=np.int64),
+            fine.grid,
+            "block_xyz",
+        )
+        ix, _, _ = _node_ijk(fine_total // 3, fine.grid)
+        fully_interior = (ix > 1) & (ix < int(fine.grid.nx) - 1)
+
+        np.testing.assert_allclose(row_sums[fully_interior], 1.0, atol=1e-12)
+        assert float(np.min(row_sums)) >= 0.0
+        assert float(np.max(row_sums)) <= 1.0
+    finally:
+        hierarchy.cleanup()

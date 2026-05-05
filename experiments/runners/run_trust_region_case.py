@@ -71,6 +71,37 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=("coo_local", "coo"),
         default=None,
     )
+    parser.add_argument(
+        "--he-pmg-coarsest-level",
+        type=str,
+        default="1",
+        help="HE PCMG coarsest level, or 'auto' to choose from MPI rank count.",
+    )
+    parser.add_argument("--he-pmg-auto-min-dofs-per-rank", type=int, default=128)
+    parser.add_argument("--he-pmg-smoother-ksp-type", type=str, default="richardson")
+    parser.add_argument("--he-pmg-smoother-pc-type", type=str, default="jacobi")
+    parser.add_argument("--he-pmg-smoother-steps", type=int, default=2)
+    parser.add_argument("--he-pmg-coarse-ksp-type", type=str, default="")
+    parser.add_argument("--he-pmg-coarse-pc-type", type=str, default="hypre")
+    parser.add_argument("--he-pmg-coarse-redundant-number", type=int, default=0)
+    parser.add_argument("--he-pmg-coarse-telescope-reduction-factor", type=int, default=0)
+    parser.add_argument("--he-pmg-coarse-factor-solver-type", type=str, default="")
+    parser.add_argument("--he-pmg-coarse-hypre-nodal-coarsen", type=int, default=6)
+    parser.add_argument("--he-pmg-coarse-hypre-vec-interp-variant", type=int, default=3)
+    parser.add_argument("--he-pmg-coarse-hypre-strong-threshold", type=float, default=None)
+    parser.add_argument("--he-pmg-coarse-hypre-coarsen-type", type=str, default="")
+    parser.add_argument("--he-pmg-coarse-hypre-max-iter", type=int, default=2)
+    parser.add_argument("--he-pmg-coarse-hypre-tol", type=float, default=0.0)
+    parser.add_argument(
+        "--he-pmg-coarse-hypre-relax-type-all",
+        type=str,
+        default="symmetric-SOR/Jacobi",
+    )
+    parser.add_argument(
+        "--he-pmg-galerkin",
+        choices=("both", "pmat", "mat"),
+        default="both",
+    )
 
     parser.add_argument("--tolf", type=float, default=1e-4)
     parser.add_argument("--tolg", type=float, default=1e-3)
@@ -332,6 +363,24 @@ def _run_he(args):
         problem_build_mode=args.problem_build_mode,
         distribution_strategy=args.distribution_strategy,
         assembly_backend=args.assembly_backend,
+        he_pmg_coarsest_level=args.he_pmg_coarsest_level,
+        he_pmg_auto_min_dofs_per_rank=args.he_pmg_auto_min_dofs_per_rank,
+        he_pmg_smoother_ksp_type=args.he_pmg_smoother_ksp_type,
+        he_pmg_smoother_pc_type=args.he_pmg_smoother_pc_type,
+        he_pmg_smoother_steps=args.he_pmg_smoother_steps,
+        he_pmg_coarse_ksp_type=args.he_pmg_coarse_ksp_type,
+        he_pmg_coarse_pc_type=args.he_pmg_coarse_pc_type,
+        he_pmg_coarse_redundant_number=args.he_pmg_coarse_redundant_number,
+        he_pmg_coarse_telescope_reduction_factor=args.he_pmg_coarse_telescope_reduction_factor,
+        he_pmg_coarse_factor_solver_type=args.he_pmg_coarse_factor_solver_type,
+        he_pmg_coarse_hypre_nodal_coarsen=args.he_pmg_coarse_hypre_nodal_coarsen,
+        he_pmg_coarse_hypre_vec_interp_variant=args.he_pmg_coarse_hypre_vec_interp_variant,
+        he_pmg_coarse_hypre_strong_threshold=args.he_pmg_coarse_hypre_strong_threshold,
+        he_pmg_coarse_hypre_coarsen_type=args.he_pmg_coarse_hypre_coarsen_type,
+        he_pmg_coarse_hypre_max_iter=args.he_pmg_coarse_hypre_max_iter,
+        he_pmg_coarse_hypre_tol=args.he_pmg_coarse_hypre_tol,
+        he_pmg_coarse_hypre_relax_type_all=args.he_pmg_coarse_hypre_relax_type_all,
+        he_pmg_galerkin=args.he_pmg_galerkin,
         tolf=args.tolf,
         tolg=args.tolg,
         tolg_rel=args.tolg_rel,
