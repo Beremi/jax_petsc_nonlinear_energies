@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import gc
 import json
 import os
@@ -47,6 +48,7 @@ from src.problems.slope_stability_3d.support.mesh import (
     DEFAULT_PLASTICITY3D_CONSTRAINT_VARIANT,
     PLASTICITY3D_CONSTRAINT_VARIANT_COMPONENTWISE_BOTTOM,
     base_mesh_name_for_name,
+    clear_same_mesh_case_hdf5_caches,
     ensure_same_mesh_case_hdf5,
     load_case_hdf5_fields,
     normalize_constraint_variant,
@@ -97,6 +99,16 @@ try:
     )
 except Exception as exc:  # pragma: no cover - exercised in real runs
     SOURCE_IMPORT_ERROR = exc
+
+
+def _trim_process_heap() -> None:
+    try:
+        trim = getattr(ctypes.CDLL("libc.so.6"), "malloc_trim", None)
+        if trim is not None:
+            trim(0)
+    except Exception:
+        pass
+
 
 DEFAULT_SOURCE_ROOT = REPO_ROOT / "tmp" / "source_compare" / "slope_stability_petsc4py"
 LOCAL_SOLVER_FAST = "local"
@@ -398,6 +410,7 @@ class LocalAssemblyBackend:
         self.perm = np.asarray(self.layout.perm, dtype=np.int64)
         self.force = np.asarray(self.params["force"], dtype=np.float64)
         self.coords_ref = np.asarray(self.params["nodes"], dtype=np.float64)
+        self.u0_ref = np.asarray(self.params["u_0"], dtype=np.float64)
         self._elastic_mat: PETSc.Mat | None = None
         self._owned_tangent_mat: PETSc.Mat | None = None
         self._owned_regularized_mat: PETSc.Mat | None = None
@@ -546,7 +559,7 @@ class LocalAssemblyBackend:
     def final_observables(self, u_global: np.ndarray) -> dict[str, float]:
         full_original = np.empty_like(np.asarray(u_global, dtype=np.float64))
         full_original[self.perm] = np.asarray(u_global, dtype=np.float64)
-        u_full = np.asarray(self.params["u_0"], dtype=np.float64).copy()
+        u_full = np.asarray(self.u0_ref, dtype=np.float64).copy()
         u_full[self.freedofs] = full_original
         coords_final = self.coords_ref + u_full.reshape((-1, 3))
         displacement = coords_final - self.coords_ref
@@ -555,6 +568,38 @@ class LocalAssemblyBackend:
             "omega": float(np.dot(self.force, u_full)),
             "u_max": float(np.max(np.linalg.norm(displacement, axis=1))),
         }
+
+    def slim_problem_payload(self, *, keep_state_fields: bool = False) -> None:
+        keep = {
+            "case_name",
+            "mesh_name",
+            "constraint_variant",
+            "macro_parent_mesh_name",
+            "davis_type",
+            "elem_type",
+            "element_degree",
+            "u_0_len",
+            "lambda_target_default",
+            "gravity_axis",
+        }
+        if bool(keep_state_fields):
+            keep.update(
+                {
+                    "u_0",
+                    "nodes",
+                    "freedofs",
+                    "force",
+                    "surf",
+                    "boundary_label",
+                    "elems_scalar",
+                }
+            )
+        for key in list(self.params):
+            if key in keep:
+                continue
+            value = self.params.get(key)
+            if isinstance(value, np.ndarray):
+                self.params.pop(key, None)
 
     def close(self) -> None:
         _destroy_mat(self._elastic_mat)
@@ -930,7 +975,7 @@ def _local_problem_args(
         str(os.environ.get("MIX_LOCAL_P4_HESSIAN_CHUNK_SIZE", "32")).strip()
     )
     p4_chunk_scatter_cache = str(
-        os.environ.get("MIX_LOCAL_P4_CHUNK_SCATTER_CACHE", "auto")
+        os.environ.get("MIX_LOCAL_P4_CHUNK_SCATTER_CACHE", "off")
     ).strip()
     p4_chunk_scatter_cache_max_gib = float(
         str(os.environ.get("MIX_LOCAL_P4_CHUNK_SCATTER_CACHE_MAX_GIB", "0.5")).strip()
@@ -1087,8 +1132,11 @@ def _build_local_assembly_backend(
             np.asarray(params["freedofs"], dtype=np.int64)
         ),
         distribution_strategy="overlap_p2p",
-        reuse_hessian_value_buffers=True,
-        assembly_backend="coo",
+        reuse_hessian_value_buffers=bool(args.reuse_hessian_value_buffers),
+        p4_hessian_chunk_size=int(args.p4_hessian_chunk_size),
+        p4_chunk_scatter_cache=str(args.p4_chunk_scatter_cache),
+        p4_chunk_scatter_cache_max_gib=float(args.p4_chunk_scatter_cache_max_gib),
+        assembly_backend=str(args.assembly_backend),
         petsc_log_events=False,
         jax_trace_dir="",
     )
@@ -3162,6 +3210,13 @@ def main() -> None:
             stage_path=stage_path,
             stage_started=case_started,
         )
+
+    if isinstance(backend, LocalAssemblyBackend):
+        backend.slim_problem_payload(keep_state_fields=args.state_out is not None)
+        clear_same_mesh_case_hdf5_caches()
+        gc.collect()
+        _trim_process_heap()
+        _append_stage_event(stage_path, stage="local_payload_slimmed", started=case_started)
 
     total_t0 = time.perf_counter()
     if str(args.solver_backend) in {

@@ -60,6 +60,14 @@ _RANK_LOCAL_LIGHT_CACHE: dict[tuple[str, int, str, str, int, int], dict[str, obj
 _RANK_LOCAL_HEAVY_CACHE: dict[tuple[str, int, str, str, int, int], dict[str, object]] = {}
 
 
+def clear_same_mesh_case_hdf5_caches() -> None:
+    """Release in-process same-mesh HDF5 payload caches."""
+
+    _LIGHT_CASE_CACHE.clear()
+    _RANK_LOCAL_LIGHT_CACHE.clear()
+    _RANK_LOCAL_HEAVY_CACHE.clear()
+
+
 @dataclass(frozen=True)
 class SlopeStability3DCaseData:
     case_name: str

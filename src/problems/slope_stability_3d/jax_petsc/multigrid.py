@@ -464,6 +464,32 @@ def _expand_vector_component_entries(
     )
 
 
+def _same_mesh_rank_local_element_pair(
+    coarse: MGLevelSpace,
+    fine: MGLevelSpace,
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Return same-mesh element rows needed by this rank's owned fine rows."""
+
+    if "_distributed_local_elem_idx" not in fine.params:
+        return None
+    local_elem_idx = np.asarray(fine.params["_distributed_local_elem_idx"], dtype=np.int64)
+    if local_elem_idx.size == 0:
+        return (
+            np.empty((0, 0), dtype=np.int64),
+            np.empty((0, 0), dtype=np.int64),
+        )
+    coarse_all = np.asarray(coarse.params["elems_scalar"], dtype=np.int64)
+    fine_all = np.asarray(fine.params["elems_scalar"], dtype=np.int64)
+    if np.max(local_elem_idx) >= int(fine_all.shape[0]):
+        raise ValueError("rank-local same-mesh p-transfer has out-of-range fine element ids")
+    if int(coarse_all.shape[0]) != int(fine_all.shape[0]):
+        raise ValueError("same-mesh p-transfer requires matching macro element counts")
+    return (
+        np.asarray(coarse_all[local_elem_idx], dtype=np.int64),
+        np.asarray(fine_all[local_elem_idx], dtype=np.int64),
+    )
+
+
 def _adjacent_same_mesh_prolongation_entries(
     coarse: MGLevelSpace,
     fine: MGLevelSpace,
@@ -474,10 +500,22 @@ def _adjacent_same_mesh_prolongation_entries(
     if str(coarse.mesh_name) != str(fine.mesh_name):
         raise ValueError("same-mesh p-transfer requires matching mesh_name values")
 
-    coarse_elem = np.asarray(coarse.params["elems_scalar"], dtype=np.int64)
-    fine_elem = np.asarray(fine.params["elems_scalar"], dtype=np.int64)
+    local_pair = None
+    if str(build_mode) == "owned_rows":
+        local_pair = _same_mesh_rank_local_element_pair(coarse, fine)
+    if local_pair is None:
+        coarse_elem = np.asarray(coarse.params["elems_scalar"], dtype=np.int64)
+        fine_elem = np.asarray(fine.params["elems_scalar"], dtype=np.int64)
+    else:
+        coarse_elem, fine_elem = local_pair
     if coarse_elem.shape[0] != fine_elem.shape[0]:
         raise ValueError("same-mesh p-transfer requires matching macro element counts")
+    if int(fine_elem.shape[0]) == 0:
+        return (
+            np.empty(0, dtype=np.int64),
+            np.empty(0, dtype=np.int64),
+            np.empty(0, dtype=np.float64),
+        )
     if "material_id" in coarse.params and "material_id" in fine.params:
         if not np.array_equal(
             np.asarray(coarse.params["material_id"], dtype=np.int64),
@@ -836,6 +874,8 @@ def build_mixed_pmg_hierarchy(
             )
             if bool(slim_completed_levels):
                 _slim_level_runtime_payload(coarse)
+    if bool(slim_completed_levels) and levels:
+        _slim_level_runtime_payload(levels[-1])
     level_build_time = float(time.perf_counter() - t_levels0)
     transfer_build_time = (
         float(time.perf_counter() - t_transfers0) if t_transfers0 > 0.0 else 0.0

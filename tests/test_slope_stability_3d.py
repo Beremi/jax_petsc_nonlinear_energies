@@ -31,6 +31,7 @@ from src.problems.slope_stability_3d.support.mesh import (
     build_same_mesh_lagrange_case_data,
     ensure_same_mesh_case_hdf5,
     load_case_hdf5,
+    load_same_mesh_case_hdf5_rank_local_light,
     ownership_block_size_3d,
     same_mesh_case_hdf5_path,
     select_reordered_perm_3d,
@@ -836,6 +837,42 @@ def test_vectorized_transfer_entries_match_reference_builders():
     np.testing.assert_array_equal(cols_new, cols_ref)
     np.testing.assert_allclose(data_new, data_ref, rtol=0.0, atol=1.0e-12)
     hierarchy_p2.cleanup()
+
+    params_p2_local = load_same_mesh_case_hdf5_rank_local_light(
+        "hetero_ssr_L1",
+        2,
+        reorder_mode="block_xyz",
+        comm=comm,
+    )
+    hierarchy_p2_local = multigrid.build_mixed_pmg_hierarchy(
+        specs=multigrid.mixed_hierarchy_specs(
+            mesh_name="hetero_ssr_L1",
+            finest_degree=2,
+            strategy="same_mesh_p2_p1",
+        ),
+        finest_params=params_p2_local,
+        finest_adjacency=None,
+        finest_perm=np.asarray(params_p2_local["_distributed_perm"], dtype=np.int64),
+        reorder_mode="block_xyz",
+        comm=comm,
+        level_build_mode="rank_local",
+        transfer_build_mode="owned_rows",
+    )
+    coarse_p1_local, fine_p2_local = hierarchy_p2_local.levels
+    rows_local, cols_local, data_local = multigrid._adjacent_same_mesh_prolongation_entries(
+        coarse_p1_local,
+        fine_p2_local,
+        build_mode="owned_rows",
+    )
+    rows_ref, cols_ref, data_ref = _reference_same_mesh_transfer_entries_dict(
+        coarse_p1_local,
+        fine_p2_local,
+        build_mode="owned_rows",
+    )
+    np.testing.assert_array_equal(rows_local, rows_ref)
+    np.testing.assert_array_equal(cols_local, cols_ref)
+    np.testing.assert_allclose(data_local, data_ref, rtol=0.0, atol=1.0e-12)
+    hierarchy_p2_local.cleanup()
 
     fine_l12 = build_same_mesh_lagrange_case_data(
         "hetero_ssr_L1_2", degree=1, build_mode="replicated", comm=comm
