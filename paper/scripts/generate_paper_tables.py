@@ -30,6 +30,16 @@ P3D_DERIVATIVE_ABLATION_SUMMARY = (
     REPO_ROOT / "artifacts/raw_results/plasticity3d_derivative_ablation/comparison_summary.json"
 )
 JAX_FEM_BASELINE_SUMMARY = REPO_ROOT / "artifacts/raw_results/jax_fem_hyperelastic_baseline/comparison_summary.json"
+P3D_LOCAL_LAMBDA155_SCALING = (
+    REPO_ROOT
+    / "artifacts/reports/local_plasticity3d_p4_l1_2_mumps_pmg_solver_total_scaling/solver_total_scaling.csv"
+)
+P3D_KAROLINA_LAMBDA155_SCALING = (
+    REPO_ROOT
+    / "artifacts/raw_results/karolina/plasticity3d_p4_l1_2_mumps_pmg_scaling/"
+    / "plasticity3d_p4_l1_2_mumps_pmg_rpn16_node_sweep_hdf5_nolock_20260507_121450/"
+    / "summary/fetched_results_summary.csv"
+)
 
 PLAPLACE_PARITY = REPO_ROOT / "experiments/analysis/docs_assets/data/plaplace/parity_showcase.csv"
 GL_PARITY = REPO_ROOT / "experiments/analysis/docs_assets/data/ginzburg_landau/parity_showcase.csv"
@@ -312,6 +322,40 @@ def select_topology_rows(labels: tuple[str, ...]) -> list[dict[str, str]]:
     return [row for row in rows if row.get("label") in labels]
 
 
+def plasticity3d_local_karolina_rows() -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for row in read_csv_rows(P3D_LOCAL_LAMBDA155_SCALING):
+        rows.append(
+            {
+                "source": "local workstation",
+                "ranks": int(row["ranks"]),
+                "nodes": None,
+                "solver_total_s": float(row["solver_total_s"]),
+                "solve_time_s": float(row["nonlinear_solve_s"]),
+                "linear_iterations_total": int(row["linear_iterations_total"]),
+                "energy": float(row["energy"]),
+                "grad": float(row["final_grad_norm"]),
+            }
+        )
+    for row in read_csv_rows(P3D_KAROLINA_LAMBDA155_SCALING):
+        if row.get("output") != "yes" or not row.get("solver_total"):
+            continue
+        rows.append(
+            {
+                "source": "Karolina",
+                "ranks": int(row["ranks"]),
+                "nodes": int(row["nodes"]),
+                "solver_total_s": float(row["solver_total"]),
+                "solve_time_s": float(row["solve_time"]),
+                "linear_iterations_total": int(row["ksp_its"]),
+                "energy": float(row["energy"]),
+                "grad": float(row["grad"]),
+            }
+        )
+    rows.sort(key=lambda row: (str(row["source"]) != "local workstation", int(row["ranks"])))
+    return rows
+
+
 def plasticity2d_resolution_rows() -> list[dict[str, object]]:
     showcase = read_json(P2D_SHOWCASE)
     l5_result = showcase["result"]["steps"][0]
@@ -428,6 +472,7 @@ def main() -> None:
     mixed_source_rows = find_rows(mixed_rows, SOURCE_IMPL)
     sourcefixed_local_rows = find_rows(sourcefixed_rows, LOCAL_SOURCEFIXED_IMPL)
     sourcefixed_source_rows = find_rows(sourcefixed_rows, SOURCE_SOURCEFIXED_IMPL)
+    p3d_local_karolina_rows = plasticity3d_local_karolina_rows()
 
     pl_showcase = select_csv_rows(PLAPLACE_PARITY, ("fenics_custom", "jax_petsc_element", "jax_petsc_local_sfd"))
     gl_showcase = select_csv_rows(GL_PARITY, ("fenics_custom", "jax_petsc_element", "jax_petsc_local_sfd"))
@@ -769,6 +814,34 @@ def main() -> None:
     )
 
     write_table_star(
+        "plasticity3d_local_karolina_scaling.tex",
+        fill_spec("l c c c c c c c"),
+        [
+            "Platform",
+            "Ranks",
+            "Nodes",
+            "Solver total [s]",
+            "Solve [s]",
+            "Krylov iters",
+            "Energy",
+            "$\\|g\\|$",
+        ],
+        [
+            [
+                str(row["source"]),
+                fmt_count(row["ranks"]),
+                "--" if row["nodes"] is None else fmt_count(row["nodes"]),
+                fmt_wall_time(float(row["solver_total_s"])),
+                fmt_wall_time(float(row["solve_time_s"])),
+                fmt_count(row["linear_iterations_total"]),
+                fmt_energy(float(row["energy"])),
+                fmt_float(float(row["grad"]), 3),
+            ]
+            for row in p3d_local_karolina_rows
+        ],
+    )
+
+    write_table_star(
         "plasticity3d_local_vs_source.tex",
         fill_spec("c c c c c c"),
         ["Ranks", "Constitutive wall [s]", "Source wall [s]", "Constitutive solve [s]", "Source solve [s]", "Ratio"],
@@ -994,6 +1067,19 @@ def main() -> None:
                 "source_solve_time_s": float(srow["solve_time_s"]),
             }
             for lrow, srow in zip(mixed_local_rows, mixed_source_rows, strict=True)
+        ],
+        "plasticity3d_local_karolina_scaling": [
+            {
+                "source": str(row["source"]),
+                "nodes": None if row["nodes"] is None else int(row["nodes"]),
+                "ranks": int(row["ranks"]),
+                "solver_total_s": float(row["solver_total_s"]),
+                "solve_time_s": float(row["solve_time_s"]),
+                "linear_iterations_total": int(row["linear_iterations_total"]),
+                "energy": float(row["energy"]),
+                "grad": float(row["grad"]),
+            }
+            for row in p3d_local_karolina_rows
         ],
         "plasticity3d_validation": {
             "layer1a_work_rel": float(layer1a_metrics["work_relative_difference"]),

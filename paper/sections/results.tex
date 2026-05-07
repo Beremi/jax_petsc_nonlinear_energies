@@ -239,6 +239,39 @@ remain matched on 1/2/4/8/16/32 ranks, while the end-to-end time drops from
 source-vs-local and continuation evidence is reported later in
 \Cref{sec:solver-evidence}.
 
+A final fixed-work diagnostic repeats the glued-bottom
+$P_4(L_2)$, $\lambda_{\mathrm{sr}}=\num{1.55}$ case with the current
+constitutive-AD local assembly and MUMPS-backed PMG stack. The PMG hierarchy is
+the same-mesh $P_4 \rightarrow P_2 \rightarrow P_1$ hierarchy, the nonlinear
+method is Armijo Newton, and the Krylov tolerance is \num{1e-1}. Each run is
+intentionally capped after five Newton iterations, so the raw solver status is
+``maximum number of iterations reached'' even though the fixed work is matched.
+\Cref{fig:plasticity3d-local-karolina-scaling,tab:plasticity3d-local-karolina-scaling}
+overlay the local workstation sweep with the Karolina CPU-node sweep at
+16 MPI ranks per node. All plotted rows use 29 Krylov iterations and reach the
+same capped-state energy and gradient norm to the precision shown in the table;
+the figure is therefore a fixed-work implementation diagnostic rather than a
+new convergence claim.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\PaperFigureMedium]{plasticity3d_local_vs_karolina_scaling.pdf}
+  \caption{Local and Karolina fixed-work scaling for the glued-bottom
+  Plasticity3D $P_4(L_2)$ case at $\lambda_{\mathrm{sr}}=\num{1.55}$. Dashed
+  references are ideal $1/r$ lines anchored separately to the first point of
+  each platform.}
+  \label{fig:plasticity3d-local-karolina-scaling}
+\end{figure}
+
+\begin{table}[H]
+  \centering
+  \input{tables/generated/plasticity3d_local_karolina_scaling.tex}
+  \caption{Timings for the capped five-Newton-iteration Plasticity3D
+  diagnostic in \cref{fig:plasticity3d-local-karolina-scaling}. Local rows are
+  single-workstation MPI runs; Karolina rows use 16 ranks per CPU node.}
+  \label{tab:plasticity3d-local-karolina-scaling}
+\end{table}
+
 \subsection{Topology Optimization}
 \label{sec:num-topology}
 

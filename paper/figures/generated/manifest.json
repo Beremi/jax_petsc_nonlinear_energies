@@ -1,6 +1,9 @@
 {
   "copied_assets": [],
   "generated_asset_inputs": {
+    "hyperelasticity_karolina_pmg_scaling.pdf": [
+      "/home/michal/repos/fenics_nonlinear_energies/experiments/analysis/docs_assets/data/hyperelasticity/karolina_l5_pmg_scaling.csv"
+    ],
     "jax_fem_hyperelastic_baseline_centerline.pdf": [
       "/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/jax_fem_hyperelastic_baseline/comparison_summary.json",
       "/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/jax_fem_hyperelastic_baseline/parity/repo_serial_direct_state.npz",
@@ -12,8 +15,9 @@
     "plasticity3d_derivative_ablation_bars.pdf": [
       "/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/plasticity3d_derivative_ablation/comparison_summary.json"
     ],
-    "hyperelasticity_karolina_pmg_scaling.pdf": [
-      "/home/michal/repos/fenics_nonlinear_energies/experiments/analysis/docs_assets/data/hyperelasticity/karolina_l5_pmg_scaling.csv"
+    "plasticity3d_local_vs_karolina_scaling.pdf": [
+      "/home/michal/repos/fenics_nonlinear_energies/artifacts/reports/local_plasticity3d_p4_l1_2_mumps_pmg_solver_total_scaling/solver_total_scaling.csv",
+      "/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/karolina/plasticity3d_p4_l1_2_mumps_pmg_scaling/plasticity3d_p4_l1_2_mumps_pmg_rpn16_node_sweep_hdf5_nolock_20260507_121450/summary/fetched_results_summary.csv"
     ],
     "plasticity3d_validation_layer1a_boundary.pdf": [
       "/home/michal/repos/fenics_nonlinear_energies/artifacts/raw_results/plasticity3d_validation/validation_manifest.json",
@@ -58,7 +62,8 @@
     "plasticity3d_derivative_ablation_bars.pdf",
     "jax_fem_hyperelastic_baseline_energy_history.pdf",
     "jax_fem_hyperelastic_baseline_centerline.pdf",
-    "plasticity3d_recommended_scaling.pdf"
+    "plasticity3d_recommended_scaling.pdf",
+    "plasticity3d_local_vs_karolina_scaling.pdf"
   ],
   "layout": {
     "full_width_in": 7.086614501176145,

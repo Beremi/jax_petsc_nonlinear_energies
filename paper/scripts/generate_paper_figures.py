@@ -93,6 +93,16 @@ TOPOLOGY_SCALING = REPO_ROOT / "experiments/analysis/docs_assets/data/topology/s
 P3D_VALIDATION_ROOT = REPO_ROOT / "artifacts/raw_results/plasticity3d_validation"
 P3D_DERIVATIVE_ABLATION_ROOT = REPO_ROOT / "artifacts/raw_results/plasticity3d_derivative_ablation"
 JAX_FEM_BASELINE_ROOT = REPO_ROOT / "artifacts/raw_results/jax_fem_hyperelastic_baseline"
+P3D_LOCAL_LAMBDA155_SCALING = (
+    REPO_ROOT
+    / "artifacts/reports/local_plasticity3d_p4_l1_2_mumps_pmg_solver_total_scaling/solver_total_scaling.csv"
+)
+P3D_KAROLINA_LAMBDA155_SCALING = (
+    REPO_ROOT
+    / "artifacts/raw_results/karolina/plasticity3d_p4_l1_2_mumps_pmg_scaling/"
+    / "plasticity3d_p4_l1_2_mumps_pmg_rpn16_node_sweep_hdf5_nolock_20260507_121450/"
+    / "summary/fetched_results_summary.csv"
+)
 
 LOCAL_IMPL = "local_constitutiveAD_local_pmg_armijo"
 SOURCE_IMPL = "source_local_pmg_armijo"
@@ -1935,6 +1945,57 @@ def _plot_plasticity_scaling(layout: dict[str, float], rows_by_impl: dict[str, l
     return outputs
 
 
+def generate_plasticity3d_local_vs_karolina_scaling(layout: dict[str, float]) -> str:
+    plt = configure_paper_matplotlib()
+    local_rows = read_csv_rows(P3D_LOCAL_LAMBDA155_SCALING)
+    karolina_rows = [
+        row
+        for row in read_csv_rows(P3D_KAROLINA_LAMBDA155_SCALING)
+        if row.get("output") == "yes" and row.get("solver_total")
+    ]
+    local_rows.sort(key=lambda row: int(row["ranks"]))
+    karolina_rows.sort(key=lambda row: int(row["ranks"]))
+
+    fig, ax = plt.subplots(figsize=paper_figure_size(layout, preset="medium", height_ratio=0.52))
+    series = [
+        (
+            "local workstation",
+            np.asarray([int(row["ranks"]) for row in local_rows], dtype=np.int64),
+            np.asarray([float(row["solver_total_s"]) for row in local_rows], dtype=np.float64),
+            "#1f77b4",
+            "o",
+        ),
+        (
+            "Karolina, 16 ranks/node",
+            np.asarray([int(row["ranks"]) for row in karolina_rows], dtype=np.int64),
+            np.asarray([float(row["solver_total"]) for row in karolina_rows], dtype=np.float64),
+            "#d62728",
+            "s",
+        ),
+    ]
+    all_ranks: list[int] = []
+    for label, ranks, times, color, marker in series:
+        all_ranks.extend(int(rank) for rank in ranks)
+        ax.plot(ranks, times, marker=marker, color=color, linewidth=1.9, markersize=4.6, label=label)
+        ax.plot(ranks, ideal_strong_scaling(ranks, times), color=color, linestyle="--", linewidth=1.0, alpha=0.42)
+
+    ax.set_xscale("log", base=2)
+    ax.set_yscale("log")
+    ax.set_xticks(np.asarray(sorted(set(all_ranks)), dtype=np.int64))
+    ax.get_xaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+    ax.grid(True, which="both", alpha=0.25)
+    ax.set_xlabel("MPI ranks")
+    ax.set_ylabel("Solver total time [s]")
+    ax.margins(x=0.04, y=0.12)
+    ax.legend(frameon=True, loc="best")
+    fig.subplots_adjust(left=0.13, right=0.98, bottom=0.16, top=0.96)
+
+    out = FIGURES_ROOT / "plasticity3d_local_vs_karolina_scaling.pdf"
+    save_pdf_and_png(fig, out)
+    plt.close(fig)
+    return out.name
+
+
 def _plot_local_vs_source(layout: dict[str, float], rows: list[dict[str, object]]) -> str:
     plt = configure_paper_matplotlib()
     local_rows = _find_rows(rows, LOCAL_IMPL)
@@ -2282,6 +2343,7 @@ def main() -> None:
 
     _, local_rows_by_impl = _load_impl_rows(LOCAL_P3D_SUMMARY)
     generated.extend(_plot_plasticity_scaling(layout, local_rows_by_impl))
+    generated.append(generate_plasticity3d_local_vs_karolina_scaling(layout))
 
     manifest = {
         "copied_assets": [],
@@ -2308,6 +2370,10 @@ def main() -> None:
             ],
             "hyperelasticity_karolina_pmg_scaling.pdf": [
                 str(HYPER_KAROLINA_PMG_SCALING),
+            ],
+            "plasticity3d_local_vs_karolina_scaling.pdf": [
+                str(P3D_LOCAL_LAMBDA155_SCALING),
+                str(P3D_KAROLINA_LAMBDA155_SCALING),
             ],
             "jax_fem_hyperelastic_baseline_energy_history.pdf": [
                 str(JAX_FEM_BASELINE_ROOT / "comparison_summary.json"),
