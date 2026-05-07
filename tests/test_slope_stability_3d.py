@@ -943,6 +943,32 @@ def test_mixed_hierarchy_specs_support_uniform_refined_p1_chain():
         )
 
 
+def test_mixed_hierarchy_specs_support_uniform_refined_p2_p1_chain():
+    specs = multigrid.mixed_hierarchy_specs(
+        mesh_name="hetero_ssr_L1_2_3",
+        finest_degree=2,
+        strategy="uniform_refined_p2_p1_chain",
+    )
+    assert [(spec.mesh_name, spec.degree) for spec in specs] == [
+        ("hetero_ssr_L1", 1),
+        ("hetero_ssr_L1_2", 1),
+        ("hetero_ssr_L1_2_3", 1),
+        ("hetero_ssr_L1_2_3", 2),
+    ]
+    with pytest.raises(ValueError, match="requires finest degree 2"):
+        multigrid.mixed_hierarchy_specs(
+            mesh_name="hetero_ssr_L1_2_3",
+            finest_degree=4,
+            strategy="uniform_refined_p2_p1_chain",
+        )
+    with pytest.raises(ValueError, match="requires a refined mesh name"):
+        multigrid.mixed_hierarchy_specs(
+            mesh_name="hetero_ssr_L1",
+            finest_degree=2,
+            strategy="uniform_refined_p2_p1_chain",
+        )
+
+
 def test_mixed_hierarchy_specs_allow_degenerate_uniform_refined_p1_chain():
     specs = multigrid.mixed_hierarchy_specs(
         mesh_name="hetero_ssr_L1",

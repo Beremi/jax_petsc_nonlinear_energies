@@ -752,6 +752,25 @@ def mixed_hierarchy_specs(
         if finest_degree != 2:
             raise ValueError("same_mesh_p2_p1 requires finest degree 2")
         return [MGHierarchySpec(str(mesh_name), 1), MGHierarchySpec(str(mesh_name), 2)]
+    if str(strategy) == "uniform_refined_p2_p1_chain":
+        if finest_degree != 2:
+            raise ValueError("uniform_refined_p2_p1_chain requires finest degree 2")
+        coarse_mesh_name = base_mesh_name_for_name(str(mesh_name))
+        refinement_steps = int(uniform_refinement_steps_for_name(str(mesh_name)))
+        if coarse_mesh_name == str(mesh_name):
+            raise ValueError(
+                "uniform_refined_p2_p1_chain requires a refined mesh name such as hetero_ssr_L1_2"
+            )
+        if refinement_steps < 1:
+            raise ValueError(
+                "uniform_refined_p2_p1_chain requires sequential refinement suffixes"
+            )
+        specs = [
+            MGHierarchySpec(mesh_name_with_uniform_refinements(str(coarse_mesh_name), steps), 1)
+            for steps in range(refinement_steps + 1)
+        ]
+        specs.append(MGHierarchySpec(str(mesh_name), 2))
+        return specs
     if str(strategy) == "same_mesh_p4_p2_p1":
         if finest_degree != 4:
             raise ValueError("same_mesh_p4_p2_p1 requires finest degree 4")

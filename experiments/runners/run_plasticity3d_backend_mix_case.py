@@ -3062,6 +3062,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--pmg-strategy",
         choices=(
             "same_mesh_p2_p1",
+            "uniform_refined_p2_p1_chain",
             "same_mesh_p4_p2_p1",
             "uniform_refined_p4_p2_p1_p1",
             "uniform_refined_p1_chain",
