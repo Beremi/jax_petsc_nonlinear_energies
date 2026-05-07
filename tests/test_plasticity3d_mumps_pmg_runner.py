@@ -48,13 +48,15 @@ def test_backend_mix_parser_accepts_local_pmg_mumps(tmp_path: Path):
     assert args.solver_backend == "local_pmg_mumps"
 
 
-def test_local_problem_args_disable_p4_scatter_cache_by_default(monkeypatch):
+def test_local_problem_args_use_p4_scatter_cache_auto_by_default(monkeypatch):
     monkeypatch.delenv("MIX_LOCAL_P4_CHUNK_SCATTER_CACHE", raising=False)
+    monkeypatch.delenv("MIX_LOCAL_P4_CHUNK_SCATTER_CACHE_MAX_GIB", raising=False)
     monkeypatch.delenv("MIX_LOCAL_ASSEMBLY_BACKEND", raising=False)
 
     args = case_runner._local_problem_args()
 
-    assert args.p4_chunk_scatter_cache == "off"
+    assert args.p4_chunk_scatter_cache == "auto"
+    assert args.p4_chunk_scatter_cache_max_gib == 2.0
     assert args.assembly_backend == "coo"
 
 

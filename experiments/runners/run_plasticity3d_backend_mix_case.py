@@ -975,10 +975,10 @@ def _local_problem_args(
         str(os.environ.get("MIX_LOCAL_P4_HESSIAN_CHUNK_SIZE", "32")).strip()
     )
     p4_chunk_scatter_cache = str(
-        os.environ.get("MIX_LOCAL_P4_CHUNK_SCATTER_CACHE", "off")
+        os.environ.get("MIX_LOCAL_P4_CHUNK_SCATTER_CACHE", "auto")
     ).strip()
     p4_chunk_scatter_cache_max_gib = float(
-        str(os.environ.get("MIX_LOCAL_P4_CHUNK_SCATTER_CACHE_MAX_GIB", "0.5")).strip()
+        str(os.environ.get("MIX_LOCAL_P4_CHUNK_SCATTER_CACHE_MAX_GIB", "2.0")).strip()
     )
     assembly_backend = str(
         os.environ.get("MIX_LOCAL_ASSEMBLY_BACKEND", "coo")

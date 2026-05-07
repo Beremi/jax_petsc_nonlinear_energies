@@ -421,7 +421,9 @@ Run the prepared `P4(L1_2), lambda = 1.55` MUMPS-coarse PMG campaign. The
 runner uses `local_constitutiveAD` assembly, the `P4 -> P2 -> P1` same-mesh
 PMG hierarchy, Chebyshev/Jacobi smoothing, and a PETSc redundant coarse solve
 with inner LU/MUMPS. Its default `--maxit 5` is a smoke/diagnostic cap; pass a
-larger cap for a full solve.
+larger cap for a full solve. The P4 element path uses the auto scatter-pattern
+cache by default; set `MIX_LOCAL_P4_CHUNK_SCATTER_CACHE=off` only when minimizing
+memory is more important than repeated Hessian assembly time.
 
 ```bash
 ./.venv/bin/python experiments/runners/run_plasticity3d_p4_l1_2_lambda1p55_mumps_pmg_scaling.py \
