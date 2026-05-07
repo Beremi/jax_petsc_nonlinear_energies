@@ -38,6 +38,10 @@ def test_backend_mix_parser_accepts_local_pmg_mumps(tmp_path: Path):
             "local_constitutiveAD",
             "--solver-backend",
             "local_pmg_mumps",
+            "--convergence-mode",
+            "all",
+            "--grad-stop-rtol",
+            "0.01",
             "--out-dir",
             str(tmp_path),
             "--output-json",
@@ -46,6 +50,8 @@ def test_backend_mix_parser_accepts_local_pmg_mumps(tmp_path: Path):
     )
 
     assert args.solver_backend == "local_pmg_mumps"
+    assert args.convergence_mode == "all"
+    assert args.grad_stop_rtol == 0.01
 
 
 def test_local_problem_args_use_p4_scatter_cache_auto_by_default(monkeypatch):

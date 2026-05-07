@@ -2038,6 +2038,7 @@ def _run_local_solver_backend(
     solver_backend: str,
     convergence_mode: str,
     grad_stop_tol: float | None,
+    grad_stop_rtol: float | None,
     stop_tol: float,
     maxit: int,
     ksp_rtol: float,
@@ -2059,6 +2060,11 @@ def _run_local_solver_backend(
     grad_stop_tol_value = (
         float(grad_stop_tol)
         if grad_stop_tol is not None and np.isfinite(float(grad_stop_tol))
+        else None
+    )
+    grad_stop_rtol_value = (
+        float(grad_stop_rtol)
+        if grad_stop_rtol is not None and np.isfinite(float(grad_stop_rtol))
         else None
     )
     progress_path = out_dir / "data" / "progress.jsonl"
@@ -2254,17 +2260,44 @@ def _run_local_solver_backend(
             "backend does not provide one."
         )
 
+    combined_gradient_stop = bool(
+        convergence_mode != "gradient_only"
+        and (
+            (grad_stop_tol_value is not None and grad_stop_tol_value > 0.0)
+            or (grad_stop_rtol_value is not None and grad_stop_rtol_value > 0.0)
+        )
+    )
     if convergence_mode == "gradient_only":
         grad_target = (
             float(grad_stop_tol_value)
             if grad_stop_tol_value is not None and grad_stop_tol_value > 0.0
             else 1.0e-2
         )
+        grad_target_rel = (
+            float(grad_stop_rtol_value)
+            if grad_stop_rtol_value is not None and grad_stop_rtol_value > 0.0
+            else 0.0
+        )
         require_all_convergence = False
         energy_tol = 0.0
         step_tol_rel = 0.0
+    elif combined_gradient_stop:
+        grad_target = (
+            float(grad_stop_tol_value)
+            if grad_stop_tol_value is not None and grad_stop_tol_value > 0.0
+            else 0.0
+        )
+        grad_target_rel = (
+            float(grad_stop_rtol_value)
+            if grad_stop_rtol_value is not None and grad_stop_rtol_value > 0.0
+            else 0.0
+        )
+        require_all_convergence = True
+        energy_tol = 1.0e100
+        step_tol_rel = float(stop_tol)
     else:
         grad_target = 1.0e100
+        grad_target_rel = 0.0
         require_all_convergence = True
         energy_tol = 1.0e100
         step_tol_rel = float(stop_tol)
@@ -2276,7 +2309,7 @@ def _run_local_solver_backend(
         x=x,
         tolf=float(energy_tol),
         tolg=float(grad_target),
-        tolg_rel=0.0,
+        tolg_rel=float(grad_target_rel),
         line_search=str(line_search),
         linesearch_tol=float(linesearch_tol),
         armijo_alpha0=float(armijo_alpha0),
@@ -2367,8 +2400,16 @@ def _run_local_solver_backend(
         "history": list(result.get("history", [])),
         "final_metric": float(final_metric),
         "final_metric_name": (
-            "grad_norm" if convergence_mode == "gradient_only" else "relative_correction"
+            "grad_norm"
+            if convergence_mode == "gradient_only"
+            else (
+                "relative_correction_and_gradient"
+                if combined_gradient_stop
+                else "relative_correction"
+            )
         ),
+        "grad_stop_tol": None if grad_stop_tol_value is None else float(grad_stop_tol_value),
+        "grad_stop_rtol": None if grad_stop_rtol_value is None else float(grad_stop_rtol_value),
         "final_grad_norm": float(final_grad_norm),
         "initial_guess": init_meta,
         "assembly_callbacks": assembly_callbacks,
@@ -2438,6 +2479,7 @@ def _run_local_solver_backend_with_source_linear(
     lambda_target: float,
     convergence_mode: str,
     grad_stop_tol: float | None,
+    grad_stop_rtol: float | None,
     stop_tol: float,
     maxit: int,
     ksp_rtol: float,
@@ -2458,6 +2500,11 @@ def _run_local_solver_backend_with_source_linear(
     grad_stop_tol_value = (
         float(grad_stop_tol)
         if grad_stop_tol is not None and np.isfinite(float(grad_stop_tol))
+        else None
+    )
+    grad_stop_rtol_value = (
+        float(grad_stop_rtol)
+        if grad_stop_rtol is not None and np.isfinite(float(grad_stop_rtol))
         else None
     )
     progress_path = out_dir / "data" / "progress.jsonl"
@@ -2595,17 +2642,44 @@ def _run_local_solver_backend_with_source_linear(
 
     solve_t0 = time.perf_counter()
     _append_stage_event(stage_path, stage="local_newton_start", started=started)
+    combined_gradient_stop = bool(
+        convergence_mode != "gradient_only"
+        and (
+            (grad_stop_tol_value is not None and grad_stop_tol_value > 0.0)
+            or (grad_stop_rtol_value is not None and grad_stop_rtol_value > 0.0)
+        )
+    )
     if convergence_mode == "gradient_only":
         grad_target = (
             float(grad_stop_tol_value)
             if grad_stop_tol_value is not None and grad_stop_tol_value > 0.0
             else 1.0e-2
         )
+        grad_target_rel = (
+            float(grad_stop_rtol_value)
+            if grad_stop_rtol_value is not None and grad_stop_rtol_value > 0.0
+            else 0.0
+        )
         require_all_convergence = False
         energy_tol = 0.0
         step_tol_rel = 0.0
+    elif combined_gradient_stop:
+        grad_target = (
+            float(grad_stop_tol_value)
+            if grad_stop_tol_value is not None and grad_stop_tol_value > 0.0
+            else 0.0
+        )
+        grad_target_rel = (
+            float(grad_stop_rtol_value)
+            if grad_stop_rtol_value is not None and grad_stop_rtol_value > 0.0
+            else 0.0
+        )
+        require_all_convergence = True
+        energy_tol = 1.0e100
+        step_tol_rel = float(stop_tol)
     else:
         grad_target = 1.0e100
+        grad_target_rel = 0.0
         require_all_convergence = True
         energy_tol = 1.0e100
         step_tol_rel = float(stop_tol)
@@ -2617,7 +2691,7 @@ def _run_local_solver_backend_with_source_linear(
         x=x,
         tolf=float(energy_tol),
         tolg=float(grad_target),
-        tolg_rel=0.0,
+        tolg_rel=float(grad_target_rel),
         line_search=str(line_search),
         linesearch_tol=float(linesearch_tol),
         armijo_alpha0=float(armijo_alpha0),
@@ -2703,8 +2777,16 @@ def _run_local_solver_backend_with_source_linear(
         "history": list(result.get("history", [])),
         "final_metric": float(final_metric),
         "final_metric_name": (
-            "grad_norm" if convergence_mode == "gradient_only" else "relative_correction"
+            "grad_norm"
+            if convergence_mode == "gradient_only"
+            else (
+                "relative_correction_and_gradient"
+                if combined_gradient_stop
+                else "relative_correction"
+            )
         ),
+        "grad_stop_tol": None if grad_stop_tol_value is None else float(grad_stop_tol_value),
+        "grad_stop_rtol": None if grad_stop_rtol_value is None else float(grad_stop_rtol_value),
         "final_grad_norm": float(final_grad_norm),
         "initial_guess": init_meta,
         "assembly_callbacks": assembly_callbacks,
@@ -3077,6 +3159,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default="all",
     )
     parser.add_argument("--grad-stop-tol", type=float, default=None)
+    parser.add_argument("--grad-stop-rtol", type=float, default=None)
     parser.add_argument("--stop-tol", type=float, default=2.0e-3)
     parser.add_argument("--maxit", type=int, default=80)
     parser.add_argument(
@@ -3237,6 +3320,7 @@ def main() -> None:
             solver_backend=str(args.solver_backend),
             convergence_mode=str(args.convergence_mode),
             grad_stop_tol=args.grad_stop_tol,
+            grad_stop_rtol=args.grad_stop_rtol,
             stop_tol=float(args.stop_tol),
             maxit=int(args.maxit),
             ksp_rtol=float(args.ksp_rtol),
@@ -3264,6 +3348,7 @@ def main() -> None:
             lambda_target=float(args.lambda_target),
             convergence_mode=str(args.convergence_mode),
             grad_stop_tol=args.grad_stop_tol,
+            grad_stop_rtol=args.grad_stop_rtol,
             stop_tol=float(args.stop_tol),
             maxit=int(args.maxit),
             ksp_rtol=float(args.ksp_rtol),
